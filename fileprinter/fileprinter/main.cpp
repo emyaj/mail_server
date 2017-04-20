@@ -6,7 +6,7 @@
 //  Copyright © 2017 Jayme Cartwright. All rights reserved.
 //
 
-#include <iostream>
+#include <iostream> //namespace std
 #include <sys/stat.h> //for mkdir
 #include <unistd.h> //write
 #include <fstream>
@@ -157,9 +157,10 @@ int main(int argc, char * argv[]) {
         printf("%s\n", "Connection Accepted...");
         //should account for multiple client processes
         if ((childp = fork()) == 0){
-            cout << "Enter name\n";
-            cin >> name;
             
+            
+                //method to get in name from rcv();
+        
         }
         else if (childp > 0){
             close(tempfd);
@@ -172,7 +173,6 @@ int main(int argc, char * argv[]) {
     
     
     
-    //NEED CLIENT TO DO THE ABOVE PART YA NUMBNUTS
     
     
     
@@ -185,16 +185,20 @@ int main(int argc, char * argv[]) {
     
     
     
-    
-    
+
+            cout << "Enter name\n";
+            cin >> name;
+            folname = "db/" + name;
+        
+            //convert username from string to character array
+            dbname = folname.c_str();
     
    
     
     
-    folname = "db/" + name;
     
-    //convert username from string to character array
-    dbname = folname.c_str();
+    
+
     
     if(alreadyhave(dbname)){
         //need to put incremented filenames
