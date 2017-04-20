@@ -33,9 +33,11 @@ void *get_in_addr(struct sockaddr *sa){
 
 int main(int argc , char *argv[]){
     
-    int sock, status;
+    int sock, rsock, status;
     struct addrinfo hints, *servinfo, *p;
     char str_ip[INET6_ADDRSTRLEN];
+    string portnum;
+    char *rcv_buf;
 
 
     //initial argument check to see if all are there
@@ -49,8 +51,7 @@ int main(int argc , char *argv[]){
         printf("\n Error : Could not create socket \n");
         return 1;
     }
-    puts("Socket created");
-    cout << "Socket created";
+    cout << "Socket created\n";
     
     
     //memory allocation
@@ -59,23 +60,25 @@ int main(int argc , char *argv[]){
     hints.ai_socktype = SOCK_STREAM; //TCP stream socket
 
     //takes arguments from command line for getaddrinfo()
+    
     if ((status = getaddrinfo(argv[1], argv[2], &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         exit(1);
     }
     
     
-    // loop through all the results and bind to the first one we can
+    // loop through results & bind to first
     for(p = servinfo; p != NULL; p = p->ai_next) {
-        //socket(int domain, int type, int protocol)
+
+        //creates socket, else gives error
         if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            perror("client: socket");
+            perror("client error: socket");
             continue;
         }
-        //tries to connect, if it cannot, closes socket & produces error
+        //tries to connect, if it cannot, closes socket & gives error
         if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
             close(sock);
-            perror("client: connect");
+            perror("client error: connect");
             continue;
         }
         break; 
@@ -99,10 +102,21 @@ int main(int argc , char *argv[]){
     
     
     
+    
+    
+   //rcv_bytes will be set to the ssize_t reurned by the recv
+    if (recv(rsock, rcv_buf, strlen(rcv_buf), 0) != -1){
+        cout << "Received msg: " << rcv_buf << "\n";
+    }else{
+        cout << "Receive error.\n";
+    }
+    
+    
 }
 
 
+// g++ -o sr main.cpp
 
-
-
+// g++ -o cl client.cpp
+// ./cl 127.0.0.1 2345
 

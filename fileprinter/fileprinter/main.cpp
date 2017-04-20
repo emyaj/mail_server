@@ -8,14 +8,14 @@
 
 #include <iostream> //namespace std
 #include <sys/stat.h> //for mkdir
-#include <unistd.h> //write
+#include <unistd.h> //write(int fd, const void *buf, size_t count); >>same as send but w/o flags
 #include <fstream>
 #include <ctime> //for time
-#include <stdio.h> //file I/O
+#include <stdio.h> //printf
 #include <string.h>    //strlen
-#include <stdlib.h>    //strlen
+#include <stdlib.h>    //namespace std
 #include <sys/socket.h>  //socket
-#include <sys/types.h> //socket
+#include <sys/types.h> //socket prerec typedefs
 #include <arpa/inet.h> //inet_addr
 #include <netinet/in.h>
 #include <errno.h> //errors
@@ -27,7 +27,29 @@
 
 using namespace std;
 
-int BACKLOG = 6;
+//constants
+const int BACKLOG = 6;
+const static char first[] = "Must enter 'helo' before proceding\n"; //first sent msg to client
+const static char help[] = "214- OPTIONS:\n"
+                            "'helo'  to greet the server (must be done in order to start SMTP connection)\n"
+                            "'mail'  to initiate the SMTP transaction\n"
+                            "'rcpt' to identify individual recipient of the message.\n"
+                            "'data'  to begin data field of message.\n"
+                            "'quit' to close the connection.\n"; //help dialogue
+const static char helo[] = "250- HELO\n"; //necessary to receive from client before you can start SMTP connection
+const static char mail[] = "250- MAIL FROM?: \n"; //used to initiate SMTP transaction
+const static char rcpt[] = "250- RCPT TO?: \n"; //to identify individual recipient of message
+const static char data[] = "354- DATA: \n"; //used to ask for data section of e-mail
+const static char quit[] = "221- CONNECTION TERMINATED\n"; //terminates client-server communication
+const static char order[] = "503- BAD SEQUENCE OF COMMANDS\n"; //for when commands are out of order
+const static char syntax_er[] = "500- COMMAND NOT RECOGNIZED\n"; //for when anything other than accepted commands are received
+const static char okay[] = "250- OK\n"; //general ok message
+
+
+
+
+
+
 
 //the multithread function
 void *connection_handler(void *);
@@ -57,19 +79,20 @@ void *get_in_addr(struct sockaddr *sa){
 int main(int argc, char * argv[]) {
     
     
-    int listenfd, status, tempfd;
-    string name, folname, fistr, rcpt, datamsg;
+    int listenfd, status, tempfd, sendfd;
+    string name, folname, fistr, rcpt, datamsg, portnum;
     const char* dbname;
     const char* finame;
     ofstream of;
     time_t thatime = time(0);
-    char* dt = ctime(&thatime);
+    char* dt = ctime(&thatime); //used for putting timestamp on email
     struct addrinfo hints, *servinfo, *p;
     int yes=1;
     socklen_t client_len;
     struct sockaddr_in client_addr; // connector's address information
     pid_t childp; //represents process ID
-
+    string send_buf;
+    ssize_t send_bytes;
 
     
     
@@ -97,7 +120,9 @@ int main(int argc, char * argv[]) {
     if ((status = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         exit(1);
-    } cout << "Address info successful.\n";
+    }
+    portnum = argv[1];
+    cout << "Using port : " << portnum << "\n" ;
     
     
     
@@ -140,7 +165,7 @@ int main(int argc, char * argv[]) {
     
     //listen at the port, allows 6 pending connectionis in the queue
     listen(listenfd, BACKLOG);
-    printf("%s\n", "Server is now listening.");
+    printf("%s\n", "Server is waiting on client.");
     
     
     
@@ -148,18 +173,32 @@ int main(int argc, char * argv[]) {
     //makes db folder
     mkdir("db", 0700);
     
-    //never-ending for loop to receive all messages from the client and print whatever is received
+    //never-ending for loop to receive all messages from the client
     for (;;) {
         
         client_len = sizeof(client_addr);
         //int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
         tempfd = accept(listenfd, (struct sockaddr *)&client_addr, &client_len);
-        printf("%s\n", "Connection Accepted...");
+        sendfd = tempfd;
+        if(tempfd>0){
+            printf("%s\n", "Connection Accepted.");
+
+        }
+                    //sent to client to inform that first command must = 'helo'
+
+        send_bytes = send(sendfd, first, sizeof(first), 0);
+            if (send_bytes > 0){
+                printf("%s\n", "Initial message sent to client.");
+
+            }
         //should account for multiple client processes
         if ((childp = fork()) == 0){
             
             
-                //method to get in name from rcv();
+
+            
+        //need to receive name of user first in process somewehre here
+            
         
         }
         else if (childp > 0){
@@ -296,3 +335,17 @@ bool alreadyhave(const char* filename)
     struct stat fileInfo;
     return stat(filename, &fileInfo) == 0;
 }
+
+
+
+
+
+// g++ -o sr main.cpp
+
+
+
+// g++ -o cl client.cpp
+
+
+
+
