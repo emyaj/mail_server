@@ -29,21 +29,21 @@ using namespace std;
 
 //constants
 const int BACKLOG = 6;
-const static char first[] = "Must enter 'helo' before proceding\n"; //first sent msg to client
-const static char help[] = "214- OPTIONS:\n"
-                            "'helo'  to greet the server (must be done in order to start SMTP connection)\n"
-                            "'mail'  to initiate the SMTP transaction\n"
+const static char first[] = "Must enter 'helo' before proceeding.\n"; //first sent msg to client
+const static char help[] = "214- OPTIONS:\n Type one of the following & hit ENTER.\n"
+                            "'helo'  to greet the server & set up for SMTP transaction.\n"
+                            "'mail'  to initiate the SMTP transaction.\n"
                             "'rcpt' to identify individual recipient of the message.\n"
                             "'data'  to begin data field of message.\n"
                             "'quit' to close the connection.\n"; //help dialogue
-const static char helo[] = "250- HELO\n"; //necessary to receive from client before you can start SMTP connection
+const static char helo[] = "250- HELO.\n"; //necessary to receive from client before you can start SMTP connection
 const static char mail[] = "250- MAIL FROM?: \n"; //used to initiate SMTP transaction
 const static char rcpt[] = "250- RCPT TO?: \n"; //to identify individual recipient of message
 const static char data[] = "354- DATA: \n"; //used to ask for data section of e-mail
-const static char quit[] = "221- CONNECTION TERMINATED\n"; //terminates client-server communication
-const static char order[] = "503- BAD SEQUENCE OF COMMANDS\n"; //for when commands are out of order
-const static char syntax_er[] = "500- COMMAND NOT RECOGNIZED\n"; //for when anything other than accepted commands are received
-const static char okay[] = "250- OK\n"; //general ok message
+const static char quit[] = "221- CONNECTION TERMINATED.\n"; //terminates client-server communication
+const static char order[] = "503- BAD SEQUENCE OF COMMANDS.\n"; //for when commands are out of order
+const static char syntax_er[] = "500- COMMAND NOT RECOGNIZED.\n"; //for when anything other than accepted commands are received
+const static char okay[] = "250- OK.\n"; //general ok message
 
 
 
@@ -151,7 +151,7 @@ int main(int argc, char * argv[]) {
         break;
     }
 
-    //exiting the loop means the server failed to bind to a port
+    //exiting the loop means the server failed to bind to port
     if (p == NULL)  {
         fprintf(stderr, "server: failed to bind\n");
         exit(1);
@@ -186,11 +186,11 @@ int main(int argc, char * argv[]) {
         }
                     //sent to client to inform that first command must = 'helo'
 
-        send_bytes = send(sendfd, first, sizeof(first), 0);
-            if (send_bytes > 0){
-                printf("%s\n", "Initial message sent to client.");
+        if (send(sendfd, first, sizeof(first), 0) == -1){
+            printf("%s\n", "Initial message failed to send to client.");
 
-            }
+        }printf("%s\n", "Initial message sent to client.");
+
         //should account for multiple client processes
         if ((childp = fork()) == 0){
             

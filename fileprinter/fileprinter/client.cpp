@@ -22,6 +22,9 @@
 
 using namespace std;
 
+
+int MAX = 1080;
+
 void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET){
         return &(((struct sockaddr_in *)sa)->sin_addr);
@@ -33,11 +36,11 @@ void *get_in_addr(struct sockaddr *sa){
 
 int main(int argc , char *argv[]){
     
-    int sock, rsock, status;
+    int sock, status;
     struct addrinfo hints, *servinfo, *p;
     char str_ip[INET6_ADDRSTRLEN];
-    string portnum;
-    char *rcv_buf;
+    string portnum, rbuf;
+    char rcv_buf[MAX];
 
 
     //initial argument check to see if all are there
@@ -101,16 +104,12 @@ int main(int argc , char *argv[]){
     
     
     
-    
-    
-    
-   //rcv_bytes will be set to the ssize_t reurned by the recv
-    if (recv(rsock, rcv_buf, strlen(rcv_buf), 0) != -1){
-        cout << "Received msg: " << rcv_buf << "\n";
-    }else{
+    //this right here receives the message that tells the client they must enter 'helo' as the first command
+    if (recv(sock, rcv_buf, sizeof(rcv_buf), 0) == -1){
         cout << "Receive error.\n";
-    }
-    
+    }else{
+        cout << rcv_buf << "\n";
+    }    
     
 }
 
