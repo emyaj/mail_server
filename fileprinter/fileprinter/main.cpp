@@ -28,6 +28,7 @@
 using namespace std;
 
 //constants
+int MAX = 1080;
 const int BACKLOG = 6;
 const static char first[] = "Must enter 'helo' before proceeding.\n"; //first sent msg to client
 const static char help[] = "214- OPTIONS:\n Type one of the following & hit ENTER.\n"
@@ -57,6 +58,9 @@ void *connection_handler(void *);
 
 
 //my methods
+void helopt(int tempsock);
+
+
 void mailfrom(ofstream &os, string n);
 void mailto(ofstream &os, string n);
 void mailcontent(ofstream &os, string n);
@@ -79,7 +83,7 @@ void *get_in_addr(struct sockaddr *sa){
 int main(int argc, char * argv[]) {
     
     
-    int listenfd, status, tempfd, sendfd;
+    int listenfd, status, sock, sendfd, rcvfd;
     string name, folname, fistr, rcpt, datamsg, portnum;
     const char* dbname;
     const char* finame;
@@ -92,8 +96,7 @@ int main(int argc, char * argv[]) {
     struct sockaddr_in client_addr; // connector's address information
     pid_t childp; //represents process ID
     string send_buf;
-    ssize_t send_bytes;
-
+    char rcv_buf[MAX];
     
     
     //argc should be 2 for correct execution
@@ -178,35 +181,51 @@ int main(int argc, char * argv[]) {
         
         client_len = sizeof(client_addr);
         //int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
-        tempfd = accept(listenfd, (struct sockaddr *)&client_addr, &client_len);
-        sendfd = tempfd;
-        if(tempfd>0){
+        sock = accept(listenfd, (struct sockaddr *)&client_addr, &client_len);
+        sendfd = sock;
+        if(sock>0){
             printf("%s\n", "Connection Accepted.");
 
         }
-                    //sent to client to inform that first command must = 'helo'
-
-        if (send(sendfd, first, sizeof(first), 0) == -1){
-            printf("%s\n", "Initial message failed to send to client.");
-
-        }printf("%s\n", "Initial message sent to client.");
+        
+        
 
         //should account for multiple client processes
         if ((childp = fork()) == 0){
             
-            
+        //Initial message sent to client to inform that first command must = 'helo'
+        //success or lack thereof printed to server window
+        if (send(sendfd, first, sizeof(first), 0) == -1){
+            printf("%s\n", "Initial message failed.");
 
+        }printf("%s\n", "Initial message sent to client.");    
             
-        //need to receive name of user first in process somewehre here
+            
+            
+            //receive word from client
+            if(recv(sendfd, rcv_buf, MAX, 0)== -1){
+              cout <<"rcv error";
+        }else{
+            cout << "msg rcvd";
+        }
+            
+            //go to helo method
+            
+            //helopt(sendfd);
+        
+            
+            
+            //receive username from client
             
         
         }
         else if (childp > 0){
-            close(tempfd);
+            close(sock);
         }
 		      
     }	
 
+}
     
     
     
@@ -214,12 +233,26 @@ int main(int argc, char * argv[]) {
     
     
     
+//makes sure the user inputs 'helo' as the first command
+void helopt(int tempsock){
+    int helosock = tempsock;
+    char rcvd[MAX];
+    
+    if (recv(helosock, rcvd, MAX, 0) == -1){
+        cout << "Receive error.\n";
+    }else if (strcmp(rcvd, "helo") == 0){
+        cout << "Received helo.\n";
+        
+    }
     
     
     
+}
+
     
     
     
+    /*
     
     
     
@@ -278,20 +311,7 @@ int main(int argc, char * argv[]) {
     return 0;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+*/
 
 
 

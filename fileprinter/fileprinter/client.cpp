@@ -24,6 +24,8 @@ using namespace std;
 
 
 int MAX = 1080;
+const static char quit[] = "221- CONNECTION TERMINATED.\n"; //terminate client-server communication
+
 
 void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET){
@@ -40,7 +42,7 @@ int main(int argc , char *argv[]){
     struct addrinfo hints, *servinfo, *p;
     char str_ip[INET6_ADDRSTRLEN];
     string portnum, rbuf;
-    char rcv_buf[MAX];
+    char rcv_buf[MAX], send_buf[MAX];
 
 
     //initial argument check to see if all are there
@@ -102,15 +104,48 @@ int main(int argc , char *argv[]){
     
     
     
+    //receive initial print statement to prompt for 'helo' command
+    recv(sock, rcv_buf, MAX, 0);
+    cout << rcv_buf;
+    //clear buffer
+    memset(rcv_buf, 0, MAX);
+
+
     
     
-    //this right here receives the message that tells the client they must enter 'helo' as the first command
-    if (recv(sock, rcv_buf, sizeof(rcv_buf), 0) == -1){
-        cout << "Receive error.\n";
-    }else{
-        cout << rcv_buf << "\n";
-    }    
-    
+    //infinite unless entering quit
+    while (fgets(send_buf, MAX, stdin) != NULL){
+        
+        //if (strcmp(send_buf, "quit") == 0){
+          //  cout << "ya decided to quit.\n";
+            
+            //be courteous, tell server you're quitting
+            //send(sock, quit, sizeof(quit), 0);
+        //}
+        
+       if (send(sock, send_buf, MAX, 0) == -1){
+                printf("%s\n", "Message failed to send to server.");
+                
+            } else{
+                //small check to make sure message is sending from client to server
+                printf("%s\n", "Message sent to server.");
+                //clear buffer
+                memset(send_buf, 0, MAX);
+            }
+        
+            //should receive message from server & print error if no success receiving 
+                if (recv(sock, rcv_buf, MAX, 0) == -1){
+                    cout << "Receive error.\n";
+                } else{//otherwise go on to send response & subsequently clear buffer
+                cout << rcv_buf << "\n";
+                memset(rcv_buf, 0, MAX);
+                }
+        
+        
+        
+        
+
+    }
 }
 
 
