@@ -199,14 +199,15 @@ int main(int argc, char * argv[]) {
             printf("%s\n", "Initial message failed.");
 
         }printf("%s\n", "Initial message sent to client.");    
+           //above works
             
             
             
             //receive word from client
-            if(recv(sendfd, rcv_buf, MAX, 0)== -1){
+            if(recv(sock, rcv_buf, MAX, 0)== -1){
               cout <<"rcv error";
         }else{
-            cout << "msg rcvd";
+            cout << "msg rcvd: " << rcv_buf;
         }
             
             //go to helo method
