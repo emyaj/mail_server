@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <netdb.h>
+#include <cstring>
 
 
 
@@ -46,19 +47,15 @@ const static char order[] = "503- BAD SEQUENCE OF COMMANDS.\n"; //for when comma
 const static char syntax_er[] = "500- COMMAND NOT RECOGNIZED.\n"; //for when anything other than accepted commands are received
 const static char okay[] = "250- OK.\n"; //general ok message
 
-
-
-
-
-
-
 //the multithread function
 void *connection_handler(void *);
 
 
 
 //my methods
+void helofirst(int tempsock);
 void helopt(int tempsock);
+
 
 
 void mailfrom(ofstream &os, string n);
@@ -83,10 +80,8 @@ void *get_in_addr(struct sockaddr *sa){
 int main(int argc, char * argv[]) {
     
     
-    int listenfd, status, sock, sendfd, rcvfd;
+    int listenfd, status, sock, sendfd;
     string name, folname, fistr, rcpt, datamsg, portnum;
-    const char* dbname;
-    const char* finame;
     ofstream of;
     time_t thatime = time(0);
     char* dt = ctime(&thatime); //used for putting timestamp on email
@@ -199,20 +194,12 @@ int main(int argc, char * argv[]) {
             printf("%s\n", "Initial message failed.");
 
         }printf("%s\n", "Initial message sent to client.");    
-           //above works
+        //above works
             
-            
-            
-            //receive word from client
-            if(recv(sock, rcv_buf, MAX, 0)== -1){
-              cout <<"rcv error";
-        }else{
-            cout << "msg rcvd: " << rcv_buf;
-        }
             
             //go to helo method
             
-            //helopt(sendfd);
+            helofirst(sock);
         
             
             
@@ -235,24 +222,74 @@ int main(int argc, char * argv[]) {
     
     
 //makes sure the user inputs 'helo' as the first command
-void helopt(int tempsock){
-    int helosock = tempsock;
+void helofirst(int tempsock){
+ 
     char rcvd[MAX];
-    
-    if (recv(helosock, rcvd, MAX, 0) == -1){
-        cout << "Receive error.\n";
-    }else if (strcmp(rcvd, "helo") == 0){
-        cout << "Received helo.\n";
+
+    while(recv(tempsock, rcvd, MAX, 0) > 0){
         
+        if (strcmp(rcvd, "helo\n") == 0){
+            printf("%s\n", "Recognized helo.");
+            send(tempsock, helo, sizeof(helo), 0);
+            memset(rcvd, 0, MAX);
+            helopt(tempsock);
+            
+            //once this is working go to a method afterwards that loops through help menu
+        }else{
+            printf("%s\n", "Strcmp failed to recognize helo.");
+            send(tempsock, order, sizeof(order), 0);
+            memset(rcvd, 0, MAX);
+        }
     }
-    
-    
-    
 }
 
     
+
+
+
+void helopt(int tempsock){
     
-    
+    char rcvd[MAX];
+
+    //loops through helo, help and quit options after taken through initial helo, else out of order
+    while(recv(tempsock, rcvd, MAX, 0) > 0){
+        if (strcmp(rcvd, "helo\n") == 0){
+            printf("%s\n", "Recognized helo.");
+            send(tempsock, helo, sizeof(helo), 0);
+            memset(rcvd, 0, MAX);
+         
+        }else if(strcmp(rcvd, "help\n") == 0){
+            //send help message
+            printf("%s\n", "Recognized help.");
+            send(tempsock, help, sizeof(help), 0);
+            memset(rcvd, 0, MAX);
+            
+        }else if(strcmp(rcvd, "mail\n") == 0){
+            //send mail message
+            printf("%s\n", "Recognized mail.");
+            send(tempsock, mail, sizeof(mail), 0);
+            memset(rcvd, 0, MAX);
+        
+        }else if(strcmp(rcvd, "quit\n") == 0){
+            //send quit message
+            printf("%s\n", "Recognized quit.");
+            send(tempsock, quit, sizeof(quit), 0);
+            memset(rcvd, 0, MAX);
+        
+            
+        }else{
+            printf("%s\n", "Strcmp failed to recognize helo, help, or quit.");
+            send(tempsock, syntax_er, sizeof(syntax_er), 0);
+            memset(rcvd, 0, MAX);
+        }
+    }
+}
+
+
+
+
+
+
     /*
     
     

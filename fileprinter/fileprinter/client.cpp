@@ -128,7 +128,7 @@ int main(int argc , char *argv[]){
                 
             } else{
                 //small check to make sure message is sending from client to server
-                printf("%s\n", "Message sent to server.");
+                //printf("%s\n", "Message sent to server.");
                 //clear buffer
                 memset(send_buf, 0, MAX);
             }
@@ -137,7 +137,7 @@ int main(int argc , char *argv[]){
                 if (recv(sock, rcv_buf, MAX, 0) == -1){
                     cout << "Receive error.\n";
                 } else{//otherwise go on to send response & subsequently clear buffer
-                cout << rcv_buf << "\n";
+                cout << rcv_buf;
                 memset(rcv_buf, 0, MAX);
                 }
         
