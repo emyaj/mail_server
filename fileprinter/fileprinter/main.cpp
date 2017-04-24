@@ -46,6 +46,8 @@ const static char quit[] = "221- CONNECTION TERMINATED.\n"; //terminates client-
 const static char order[] = "503- BAD SEQUENCE OF COMMANDS.\n"; //for when commands are out of order
 const static char syntax_er[] = "500- COMMAND NOT RECOGNIZED.\n"; //for when anything other than accepted commands are received
 const static char okay[] = "250- OK.\n"; //general ok message
+const static char authorize[] = "335-  dXNlcm5hbWU6.\n"; //server response to AUTH request to prompt for username
+
 
 //the multithread function
 void *connection_handler(void *);
@@ -60,6 +62,8 @@ void mailfrom(int tempsock);
 void mailto(ofstream &os, int tempsock);
 void mailcontent(ofstream &os, int tempsock);
 bool alreadyhave(const char* filename);
+void auth(int tempsock);
+
 
 
 void sigchld_handler(int s){
@@ -259,8 +263,8 @@ void helopt(int tempsock){
             printf("%s\n", "Recognized mail.");
             send(tempsock, mail, sizeof(mail), 0);
             memset(rcvd, 0, MAX);
-            //needs to enter mail method here
-            mailfrom(tempsock);
+            //needs to enter auth method here
+            auth(tempsock);
         
         }else if(strcmp(rcvd, "quit\n") == 0){
             //send quit message
@@ -277,10 +281,53 @@ void helopt(int tempsock){
 }
 
 
-void wannaquit(int tempsock){
-    send(tempsock, quit, sizeof(quit), 0);
-    close(tempsock);
+
+
+
+//auth method needs to go here
+void auth(int tempsock){
+    
+    char rcvd[MAX];
+
+    while(recv(tempsock, rcvd, MAX, 0) > 0){
+        
+        //recieve AUTH command from user
+        if(strcmp(rcvd, "auth\n") == 0){
+            //reply with code 334 dXNlcm5hbWU6
+            send(tempsock, authorize, sizeof(authorize), 0);
+
+            // prompting to enter username
+            memset(rcvd, 0, MAX);
+
+        }
+        
+        //receive username
+    
+        //if first log in replies with 330 and 5-digit randomly generated password
+            // add '447' to password & encode in base-64
+            // stores the encoded password w the corresponding username in hidden file “.user_pass” in db folder
+    
+    
+            //if received 330 code & temp password-->terminate connection
+            //  wait 5 sec, re-establish fresh connection
+    
+            //else reply with 334 cGFzc3dvcmQ6
+            // prompting to enter password
+    
+        //receive password
+        // add '447' to password & encode in base-64
+        // check above value against password stored in 'user_pass' file
+        // if they match, authentication successful-- go to mailfrom()
+        mailfrom(tempsock);
+        
+        //determine success/failure w reply code
+        //  RFC #4954
+    
+    }
 }
+
+
+
 
 
 //after entering mail command, user taken to this method
@@ -426,7 +473,6 @@ void mailcontent(ofstream &os, int tempsock){
 }
 
 
-
 //should return 0 if file exists and -1 if not
 bool alreadyhave(const char* filename){
     
@@ -434,6 +480,11 @@ bool alreadyhave(const char* filename){
     return stat(filename, &fileInfo) == 0;
 }
 
+
+void wannaquit(int tempsock){
+    send(tempsock, quit, sizeof(quit), 0);
+    close(tempsock);
+}
 
 
 // g++ -o sr main.cpp
