@@ -24,7 +24,6 @@ using namespace std;
 
 
 int MAX = 1080;
-const static char quit[] = "221- CONNECTION TERMINATED.\n"; //terminate client-server communication
 
 
 void *get_in_addr(struct sockaddr *sa){
@@ -116,12 +115,7 @@ int main(int argc , char *argv[]){
     //infinite unless entering quit
     while (fgets(send_buf, MAX, stdin) != NULL){
         
-        //if (strcmp(send_buf, "quit") == 0){
-          //  cout << "ya decided to quit.\n";
-            
-            //be courteous, tell server you're quitting
-            //send(sock, quit, sizeof(quit), 0);
-        //}
+        
         
        if (send(sock, send_buf, MAX, 0) == -1){
                 printf("%s\n", "Message failed to send to server.");
@@ -136,13 +130,15 @@ int main(int argc , char *argv[]){
             //should receive message from server & print error if no success receiving 
                 if (recv(sock, rcv_buf, MAX, 0) == -1){
                     cout << "Receive error.\n";
-                } else{//otherwise go on to send response & subsequently clear buffer
+                }else if(strcmp(rcv_buf, "221- CONNECTION TERMINATED.\n") == 0){
+                    cout << "Closing client socket.\n";
+                    close(sock);
+                    break;
+                }else{//otherwise go on to send response & subsequently clear buffer
                 cout << rcv_buf;
                 memset(rcv_buf, 0, MAX);
                 }
-        
-        
-        
+       
         
 
     }

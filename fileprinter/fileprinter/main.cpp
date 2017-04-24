@@ -55,7 +55,8 @@ void *connection_handler(void *);
 //my methods
 void helofirst(int tempsock);
 void helopt(int tempsock);
-
+void wannaquit(int tempsock);
+void mailfrom(int tempsock);
 
 
 void mailfrom(ofstream &os, string n);
@@ -202,7 +203,8 @@ int main(int argc, char * argv[]) {
             helofirst(sock);
         
             
-            
+            close(sock);
+            printf("%s\n", "Connection ended.");
             //receive username from client
             
         
@@ -216,11 +218,7 @@ int main(int argc, char * argv[]) {
 }
     
     
-    
-    
-    
-    
-    
+
 //makes sure the user inputs 'helo' as the first command
 void helofirst(int tempsock){
  
@@ -244,9 +242,7 @@ void helofirst(int tempsock){
 }
 
     
-
-
-
+//cycles through helo/help/mail/quit options
 void helopt(int tempsock){
     
     char rcvd[MAX];
@@ -269,13 +265,14 @@ void helopt(int tempsock){
             printf("%s\n", "Recognized mail.");
             send(tempsock, mail, sizeof(mail), 0);
             memset(rcvd, 0, MAX);
+            //needs to enter mail method here
+            mailfrom(tempsock);
         
         }else if(strcmp(rcvd, "quit\n") == 0){
             //send quit message
             printf("%s\n", "Recognized quit.");
-            send(tempsock, quit, sizeof(quit), 0);
-            memset(rcvd, 0, MAX);
-        
+            //needs to actually close socket here
+            wannaquit(tempsock);
             
         }else{
             printf("%s\n", "Strcmp failed to recognize helo, help, or quit.");
@@ -286,11 +283,48 @@ void helopt(int tempsock){
 }
 
 
+void wannaquit(int tempsock){
+    send(tempsock, quit, sizeof(quit), 0);
+    close(tempsock);
+}
+
+
+//after entering mail command, user taken to this method
+void mailfrom(int tempsock){
+    
+    cout << "Entered mail method\n";
+    
+    char rcvd[MAX];
+    string sender;
+
+    
+    //receive here who the mail is from
+    if(recv(tempsock, rcvd, MAX, 0) > 0){
+        
+        sender = string(rcvd);
+        cout << "Message from: " << sender;
+        send(tempsock, okay, sizeof(okay), 0);
+        
+        
+        
+        
+        
+
+        
+    }else{
+        send(tempsock, order, sizeof(order), 0);
+        //goes back to helo options
+        helopt(tempsock);
+    }
+    
+    
+    
+}
 
 
 
 
-    /*
+/*
     
     
     
