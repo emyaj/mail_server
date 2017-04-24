@@ -57,11 +57,8 @@ void helofirst(int tempsock);
 void helopt(int tempsock);
 void wannaquit(int tempsock);
 void mailfrom(int tempsock);
-
-
-void mailfrom(ofstream &os, string n);
-void mailto(ofstream &os, string n);
-void mailcontent(ofstream &os, string n);
+void mailto(ofstream &os, int tempsock);
+void mailcontent(ofstream &os, int tempsock);
 bool alreadyhave(const char* filename);
 
 
@@ -84,15 +81,12 @@ int main(int argc, char * argv[]) {
     int listenfd, status, sock, sendfd;
     string name, folname, fistr, rcpt, datamsg, portnum;
     ofstream of;
-    time_t thatime = time(0);
-    char* dt = ctime(&thatime); //used for putting timestamp on email
     struct addrinfo hints, *servinfo, *p;
     int yes=1;
     socklen_t client_len;
     struct sockaddr_in client_addr; // connector's address information
     pid_t childp; //represents process ID
     string send_buf;
-    char rcv_buf[MAX];
     
     
     //argc should be 2 for correct execution
@@ -295,21 +289,51 @@ void mailfrom(int tempsock){
     cout << "Entered mail method\n";
     
     char rcvd[MAX];
-    string sender;
+    string sender, fold, fname;
+    ofstream of;
+    time_t thatime = time(0);
+    char* dt = ctime(&thatime); //used for putting timestamp on email
+    int var = 1;
 
     
     //receive here who the mail is from
-    if(recv(tempsock, rcvd, MAX, 0) > 0){
-        
+    if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+        //the following line removes the newline that causes a '?'
+        rcvd[strlen(rcvd) - 1] = '\0';
         sender = string(rcvd);
-        cout << "Message from: " << sender;
+        
+        //writes on server window who the sender is
+        cout << "Message from: " << sender << "\n";
         send(tempsock, okay, sizeof(okay), 0);
         
-        
-        
-        
-        
+        //sets foldername to senders email address
+        fold =  "db/" + sender + "@447.edu";
 
+        
+        //checks if folder is already there
+        if(alreadyhave(fold.c_str())){
+            cout << "This folder already exists\n";
+            fname =  fold + "/" + sender + to_string(var);
+            var++;
+        }else{
+            //make folder for user
+            mkdir(fold.data(), 0700);
+            fname = fold + "/" + sender;
+        }
+        
+        //clear memory buffer
+        memset(rcvd, 0, MAX);
+
+        //opens email file
+        of.open(fname);
+        
+        //prints time and who from if open then sends to rcpt method
+        if(of.is_open()){
+            of << dt;
+            of << "Mail from: " << sender << "@447.edu\n";
+            //send to rcpt method
+            mailto(of, tempsock);
+        }
         
     }else{
         send(tempsock, order, sizeof(order), 0);
@@ -317,125 +341,102 @@ void mailfrom(int tempsock){
         helopt(tempsock);
     }
     
-    
-    
 }
-
-
-
-
-/*
-    
-    
-    
-    
-
-            cout << "Enter name\n";
-            cin >> name;
-            folname = "db/" + name;
-        
-            //convert username from string to character array
-            dbname = folname.c_str();
-    
-   
-    
-    
-    
-    
-
-    
-    if(alreadyhave(dbname)){
-        //need to put incremented filenames
-        fistr = "db/" + name + "/" + name + "1";
-        
-    }else{
-        //makes username folder INSIDE DB folder
-        mkdir(dbname, 0700);
-        fistr = "db/" + name + "/" + name;
-
-    }
-    
-    
-    //opens file to print
-    finame = fistr.c_str();
-    
-    
-    of.open(finame);
-    
-    of << dt;
-    if(of.is_open()){
-        mailfrom(of, name);
-    
-        
-        
-        cout << "Enter rcpt\n";
-        cin >> rcpt;
-    
-    
-        mailto(of, rcpt);
-        
-        
-        cout << "data:\n";
-        mailcontent(of, datamsg);
-        
-    }
-    
-    return 0;
-}
-
-*/
-
-
-
-
 
 
 //method writes who the mail is from
-void mailfrom(ofstream &os, string n){
+void mailto(ofstream &os, int tempsock){
     
-    if(os.is_open()){
-        os << "Mail from: " + n + "@447.edu\n";
+    char rcvd[MAX];
+    string recip;
+    
+    while(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+    
+        if(strcmp(rcvd, "rcpt\n") == 0){
+            
+            send(tempsock, rcpt, sizeof(rcpt), 0);
+            //clears buffer to receive again
+            memset(rcvd, 0, MAX);
+
+            //this should receive the recipient's name
+            recv(tempsock, rcvd, sizeof(rcvd), 0);
+            rcvd[strlen(rcvd) - 1] = '\0'; //makes buffer ignore '\n'
+            recip = string(rcvd);
+            os << "Mail rcpt: " << recip << "@447.edu\n";
+
+            //clear buffer memory again
+            memset(rcvd, 0, MAX);
+            
+            //send ok message
+            send(tempsock, okay, sizeof(okay), 0);
+
+            //go to data method
+            mailcontent(os, tempsock);
+            
+        }else{
+            send(tempsock, order, sizeof(order), 0);
+            //goes back to helo options
+            helopt(tempsock);
+        }
+    
     }
 }
-
-
-//writes who the mail is to
-void mailto(ofstream &os, string n){
-    
-    if(os.is_open()){
-        os << "Mail to: " + n + "@447.edu\n";
-    }
-}
-
 
 //gets data for message content
-void mailcontent(ofstream &os, string n){
+void mailcontent(ofstream &os, int tempsock){
+    
+    char rcvd[MAX];
+    string dta;
+    char lin[] = "Line received.\n";
+    char end[] = "End of mail determined.\nWrite another email by entering 'mail', or enter 'quit' to quit.\n";
     
     //while loop here reads in each line and prints it until a single period is entered
-    while(n != "."){
-        getline (cin, n);
-        os << n << endl;
-      
-    }
+    if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+        
+        //needs to recieve data command before you can enter the data section
+        if(strcmp(rcvd, "data\n") == 0){
+            send(tempsock, data, sizeof(data), 0);
+            memset(rcvd, 0, MAX);
 
+        } else{
+            send(tempsock, order, sizeof(order), 0);
+            memset(rcvd, 0, MAX);
+            helopt(tempsock);
+        }
+        
+        
+        //should receive first line of file & loop through until getting single '.'
+        while( recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+
+            dta = string(rcvd);
+            
+            if(strcmp(rcvd, ".\n") == 0){
+                //means end of mail message
+                send(tempsock, end, sizeof(end), 0);
+                helopt(tempsock);
+            }
+            else{
+                os << dta;
+                send(tempsock, lin, sizeof(lin), 0);
+                memset(rcvd, 0, MAX);
+            }
+            
+        }
+    }
 }
+
 
 
 //should return 0 if file exists and -1 if not
-bool alreadyhave(const char* filename)
-{
+bool alreadyhave(const char* filename){
+    
     struct stat fileInfo;
     return stat(filename, &fileInfo) == 0;
 }
 
 
 
-
-
 // g++ -o sr main.cpp
-
-
-
 // g++ -o cl client.cpp
 
 
