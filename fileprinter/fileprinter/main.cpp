@@ -309,15 +309,15 @@ void auth(int tempsock){
     char at[] = "@447.edu";
 
         //receive username
-        if(recv(tempsock, rcvd, MAX, 0) > 0){
-            //the following line removes the newline that causes a '?'
-            rcvd[strlen(rcvd) - 1] = '\0';
-            username = string(rcvd);
+    if(recv(tempsock, rcvd, MAX, 0) > 0){
+        //the following line removes the newline that causes a '?'
+        rcvd[strlen(rcvd) - 1] = '\0';
+        username = string(rcvd);
             
             
             
             //ERROR HERE STRNCMP DOES NOT WORK
-            if (username.find(at)  == (sizeof(username)-8)){
+            if (username.find(at)){
                 cout << "valid username\n";
             }else{
                 cout << "invalid username\n";
@@ -325,80 +325,77 @@ void auth(int tempsock){
             
             
             
-            //tests to see what buffer is receiving & what dir/filenames will be
+        //tests to see what buffer is receiving & what dir/filenames will be
             
-            cout << "username: " << username << endl;
+        cout << "username: " << username << endl;
             
-            userdir = "db/" + username;
-            cout << "userdir: " << userdir << endl;
+        userdir = "db/" + username;
+        cout << "userdir: " << userdir << endl;
             
-            userfile = userdir + "/" + username + ".txt";
-            cout << "userfile: " << userfile << endl;
-            
-            passfile = userdir + "/user_pass";
-            cout << "passfile: " << passfile << endl;
+        userfile = userdir + "/" + username + ".txt";
+        cout << "userfile: " << userfile << endl;
+        
+        passfile = userdir + "/user_pass";
+        cout << "passfile: " << passfile << endl;
 
-            //clear rcvd buf
-            memset(rcvd, 0, MAX);
+        //clear rcvd buf
+        memset(rcvd, 0, MAX);
             
-            if(alreadyhave(userdir.c_str())){
-                //have logged in before, reply with 334 dXNlcm5hbWU6
-                send(tempsock, auth_password, sizeof(auth_password), 0);
+        if(alreadyhave(userdir.c_str())){
+            cout << "Already have file.\n";
+            //have logged in before, reply with 334 dXNlcm5hbWU6
+            send(tempsock, auth_password, sizeof(auth_password), 0);
                 
                 
-                //here will check to see if passwords match
-                if(recv(tempsock, rcvd, MAX, 0) > 0){
+            //will check to see if passwords match-- works
+            if(recv(tempsock, rcvd, MAX, 0) > 0){
                     
-                    if(pcheck(rcvd)){
-                        //password authorized
-                        send(tempsock, valid, sizeof(valid), 0);
-                        mailfrom(tempsock);
-                    }else{
-                        //password invalid
-                        send(tempsock, invalid, sizeof(invalid), 0);
-                        //back to helopt()
-                        helopt(tempsock);
-                    }
-                    
+                if(pcheck(rcvd)){
+                    //password authorized
+                    send(tempsock, valid, sizeof(valid), 0);
+                    mailfrom(tempsock);
+                }else{
+                    //password invalid
+                    send(tempsock, invalid, sizeof(invalid), 0);
+                    //back to helopt()
+                    helopt(tempsock);
                 }
-                
-            }else{//have not logged in before
-                
-                //should make folder inside db folder with email address as title
-                mkdir(userdir.data(), 0700);
-                //should make file inside userdir folder with password
-                op.open(passfile);
-                of.open(userfile);
-                
-                //print date to userfile
-                of << dt;
-                
-                // first log in replies with 330 and 5-digit randomly generated password
-                cout << "Rand generated: ";
-                
-                //sending "PASSWORD: xxxxx
-                send(tempsock, auth_first, sizeof(auth_first), 0);
-                
-                
-                //gives different random number each time--ignore warning
-                srand(time(NULL));
-
-                for (int i=0; i<5; ++i){
-                    pinit[i] = rand() % 10; //range 0 to 9
-                    cout << pinit[i];
-                    op << pinit[i];
-                }
-                cout << endl;
-                
-                //if received 330 code & temp password-->terminate connection
-                cout << "Socket closing...\n";
-                //wait 5 seconds and close connection
-                Sleep(5);
-                close(tempsock);
             }
-
+                
+        }else{//have not logged in before
+                
+            //should make folder inside db folder with email address as title
+            mkdir(userdir.data(), 0700);
+            //should make file inside userdir folder with password
+            op.open(passfile);
+            of.open(userfile);
+            
+            //print date to userfile
+            of << dt;
+            
+            // first log in replies with 330 and 5-digit randomly generated password
+            cout << "Rand generated: ";
+            
+            //gives different random number each time--ignore warning
+            srand(time(NULL));
+            
+            for (int i=0; i<5; ++i){
+                pinit[i] = rand() % 10; //range 0 to 9
+                cout << pinit[i];
+                op << pinit[i];
+            }
+            cout << endl;
+            
+            //sending "PASSWORD: xxxxx
+            send(tempsock, auth_first, sizeof(auth_first), 0);
+                
+            //if received 330 code & temp password-->terminate connection
+            cout << "Socket closing...\n";
+            //wait 5 seconds and close connection
+            Sleep(5);
+            close(tempsock);
         }
-    
+    }
 }
 
 bool pcheck(char buf[]){
