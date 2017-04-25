@@ -49,7 +49,7 @@ const static char syntax_er[] = "500- COMMAND NOT RECOGNIZED.\n"; //for when any
 const static char okay[] = "250- OK.\n"; //general ok message
 const static char auth_username[] = "334- dXNlcm5hbWU6\n"; //server response for "username" in base 64
 const static char auth_password[] = "334- cGFzc3dvcmQ6\n"; //server response for "password" in base 64
-const static char auth_first[] = "330- PASSWORD: "; //first log-in
+const static char auth_first[] = "330- PASSWORD GENERATED: xxxxx"; //first log-in
 const static char valid[] = "235- AUTHENTICATION SUCCEEDED\n"; //when log in is successful
 const static char invalid[] = "535- AUTHENTICATION CREDENTIALS INVALID\n";
 
@@ -66,7 +66,7 @@ void mailto(ofstream &os, int tempsock);
 void mailcontent(ofstream &os, int tempsock);
 bool alreadyhave(const char* filename);
 void auth(int tempsock);
-bool pcheck(char buf[]);
+bool pcheck(char buf[], string fname);
 
 void Sleep(float s)
 {
@@ -220,8 +220,6 @@ int main(int argc, char * argv[]) {
 
 
 
-
-
 //makes sure the user inputs 'helo' as the first command
 void helofirst(int tempsock){
  
@@ -301,32 +299,39 @@ void auth(int tempsock){
     
     char rcvd[MAX];
     int pinit[5];
-    string username, userfile, userdir, userpass, passfile, temp;
+    string username, userfile, userdir, userpass, passfile, temp, atcheck;
     time_t thatime = time(0);
     char* dt = ctime(&thatime); //used for putting timestamp on email
     ofstream op; //writes to pass file
     ofstream of; //writes to mail file
     char at[] = "@447.edu";
 
+    
         //receive username
     if(recv(tempsock, rcvd, MAX, 0) > 0){
         //the following line removes the newline that causes a '?'
         rcvd[strlen(rcvd) - 1] = '\0';
         username = string(rcvd);
-            
-            
-            
-            //ERROR HERE STRNCMP DOES NOT WORK
-            if (username.find(at)){
-                cout << "valid username\n";
-            }else{
-                cout << "invalid username\n";
+        
+       //loop stores everything after the @ into 'atcheck'
+        for(int i=0; i< sizeof(username); i++){
+            if (username[i]=='@'){
+             //cout << "@ sign found\n";
+                for(int j=i; j < (sizeof(username)-i); j++){
+                    atcheck += username[j];
+                }
             }
-            
-            
-            
+        }
+        
+        //makes sure email is @447.edu
+        if (strcmp(atcheck.c_str(), at)==0){
+            cout << "valid username\n";
+        }else{
+            cout << "ERROR: invalid username\n";
+        }
+        
+        
         //tests to see what buffer is receiving & what dir/filenames will be
-            
         cout << "username: " << username << endl;
             
         userdir = "db/" + username;
@@ -341,7 +346,7 @@ void auth(int tempsock){
         //clear rcvd buf
         memset(rcvd, 0, MAX);
             
-        if(alreadyhave(userdir.c_str())){
+        if(alreadyhave(userdir.c_str())){//works
             cout << "Already have file.\n";
             //have logged in before, reply with 334 dXNlcm5hbWU6
             send(tempsock, auth_password, sizeof(auth_password), 0);
@@ -350,7 +355,7 @@ void auth(int tempsock){
             //will check to see if passwords match-- works
             if(recv(tempsock, rcvd, MAX, 0) > 0){
                     
-                if(pcheck(rcvd)){
+                if(pcheck(rcvd, username)){
                     //password authorized
                     send(tempsock, valid, sizeof(valid), 0);
                     mailfrom(tempsock);
@@ -361,7 +366,6 @@ void auth(int tempsock){
                     helopt(tempsock);
                 }
             }
-                
         }else{//have not logged in before
                 
             //should make folder inside db folder with email address as title
@@ -376,7 +380,7 @@ void auth(int tempsock){
             // first log in replies with 330 and 5-digit randomly generated password
             cout << "Rand generated: ";
             
-            //gives different random number each time--ignore warning
+            //gives different random number each time--ignore warning(this works)
             srand(time(NULL));
             
             for (int i=0; i<5; ++i){
@@ -398,13 +402,30 @@ void auth(int tempsock){
     }
 }
 
-bool pcheck(char buf[]){
+bool pcheck(char buf[], string fname){
     // add '447' to password & encode in base-64
     // stores the encoded password w the corresponding username in hidden file “.user_pass” in db folder
     
-
-    
+    string buffer = string(buf);
+    int in, fcheck;
     char pc[5];
+    string file;
+    
+    
+    
+    // need to convert char buf[] from base64
+    
+    
+    //buffer string->int
+    in = stoi(buffer);
+    //add 447 to in
+    in += 447;
+    
+    
+    
+    
+    
+    
     
     //convert both FROM base64
     
@@ -413,7 +434,7 @@ bool pcheck(char buf[]){
     //convert both TO base64
     
     //check if they match
-    if(strcmp(buf, pc) == 0){
+    if(in == fcheck){
        
         //passwords match
         return true;
