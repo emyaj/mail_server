@@ -306,7 +306,7 @@ void auth(int tempsock){
    
 
     
-        //receive username
+    //receive username
     if(recv(tempsock, rcvd, MAX, 0) > 0){
         //the following line removes the newline that causes a '?'
         rcvd[strlen(rcvd) - 1] = '\0';
@@ -332,7 +332,7 @@ void auth(int tempsock){
             userdir = "db/" + username;
             cout << "userdir: " << userdir << endl;
             
-            userfile = userdir + "/" + username + ".txt";
+            userfile = userdir + "/" + username + ".email";
             cout << "userfile: " << userfile << endl;
         
             passfile = userdir + "/user_pass";
@@ -499,7 +499,7 @@ void mailfrom(int tempsock, string un){
         send(tempsock, okay, sizeof(okay), 0);
         
         //sets foldername to senders email address
-        fold =  "db/" + un + "/" +un + ".txt";
+        fold =  "db/" + un + "/" +un + ".email";
 
         
         //checks if folder is already there
@@ -612,7 +612,6 @@ void mailcontent(ofstream &os, int tempsock){
                 send(tempsock, lin, sizeof(lin), 0);
                 memset(rcvd, 0, MAX);
             }
-            
         }
     }
 }
