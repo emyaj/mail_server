@@ -25,6 +25,7 @@
 #include <cstring>
 #include <time.h>
 
+#include "base64.hpp"
 
 
 using namespace std;
@@ -35,6 +36,7 @@ const int BACKLOG = 6;
 const static char first[] = "Must enter 'helo' before proceeding.\n"; //first sent msg to client
 const static char help[] = "214- OPTIONS:\n Type one of the following & hit ENTER.\n"
                             "'helo'  to greet the server & set up for SMTP transaction.\n"
+                            "'auth'  to initiate authorization.\n"
                             "'mail'  to initiate the SMTP transaction.\n"
                             "'rcpt' to identify individual recipient of the message.\n"
                             "'data'  to begin data field of message.\n"
@@ -45,13 +47,14 @@ const static char rcpt[] = "250- RCPT TO?: \n"; //to identify individual recipie
 const static char data[] = "354- DATA: \n"; //used to ask for data section of e-mail
 const static char quit[] = "221- CONNECTION TERMINATED.\n"; //terminates client-server communication
 const static char order[] = "503- BAD SEQUENCE OF COMMANDS.\n"; //for when commands are out of order
-const static char syntax_er[] = "500- COMMAND NOT RECOGNIZED.\n"; //for when anything other than accepted commands are received
+const static char syntax_er[] = "500- COMMAND NOT RECOGNIZED.\n";//for when anything other than accepted commands are received
 const static char okay[] = "250- OK.\n"; //general ok message
 const static char auth_username[] = "334- dXNlcm5hbWU6\n"; //server response for "username" in base 64
 const static char auth_password[] = "334- cGFzc3dvcmQ6\n"; //server response for "password" in base 64
-const static char auth_first[] = "330- PASSWORD GENERATED: xxxxx"; //first log-in
+const static char auth_first[] = "330- PASSWORD GENERATED: "; //first log-in
 const static char valid[] = "235- AUTHENTICATION SUCCEEDED\n"; //when log in is successful
-const static char invalid[] = "535- AUTHENTICATION CREDENTIALS INVALID\n";
+const static char invalid[] = "535- AUTHENTICATION CREDENTIALS INVALID\n"; //if passwords don't match
+const static char auth_req[] = "530- AUTHENTICATION REQUIRED\n"; //if mail entered before auth
 
 
 //the multithread function
@@ -61,24 +64,20 @@ void *connection_handler(void *);
 void helofirst(int tempsock);
 void helopt(int tempsock);
 void wannaquit(int tempsock);
-void mailfrom(int tempsock);
+void mailfrom(int tempsock, string un);
 void mailto(ofstream &os, int tempsock);
 void mailcontent(ofstream &os, int tempsock);
 bool alreadyhave(const char* filename);
 void auth(int tempsock);
-bool pcheck(char buf[], string fname);
+void pcheck(int tempsock, char buf[], string fname, string un);
 
-void Sleep(float s)
-{
+void Sleep(float s){
     int sec = int(s*1000000);
     usleep(sec);
 }
-
-
 void sigchld_handler(int s){
     while(waitpid(-1, NULL, WNOHANG) > 0);
 }
-
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET){
@@ -86,6 +85,9 @@ void *get_in_addr(struct sockaddr *sa){
     }
     return &(((struct sockaddr_in6 *)sa)->sin6_addr);
 }
+
+
+
 
 
 int main(int argc, char * argv[]) {
@@ -219,7 +221,6 @@ int main(int argc, char * argv[]) {
 }
 
 
-
 //makes sure the user inputs 'helo' as the first command
 void helofirst(int tempsock){
  
@@ -271,9 +272,9 @@ void helopt(int tempsock){
             auth(tempsock);
             
         }else if(strcmp(rcvd, "mail\n") == 0){
-            //send out of order message
+            //send auth required first
             printf("%s\n", "Recognized mail.");
-            send(tempsock, order, sizeof(order), 0);
+            send(tempsock, auth_req, sizeof(auth_req), 0);
             memset(rcvd, 0, MAX);
 
         }else if(strcmp(rcvd, "quit\n") == 0){
@@ -291,20 +292,18 @@ void helopt(int tempsock){
 }
 
 
-
-
-
 //auth method
 void auth(int tempsock){
     
     char rcvd[MAX];
-    int pinit[5];
-    string username, userfile, userdir, userpass, passfile, temp, atcheck;
+    int pinit;
+    string username, userfile, userdir, userpass, passfile, temp, atcheck, up, encodepass, spinit;
     time_t thatime = time(0);
     char* dt = ctime(&thatime); //used for putting timestamp on email
     ofstream op; //writes to pass file
     ofstream of; //writes to mail file
     char at[] = "@447.edu";
+   
 
     
         //receive username
@@ -326,45 +325,46 @@ void auth(int tempsock){
         //makes sure email is @447.edu
         if (strcmp(atcheck.c_str(), at)==0){
             cout << "valid username\n";
+       
+            //tests to see what buffer is receiving & what dir/filenames will be
+            cout << "username: " << username << endl;
+            
+            userdir = "db/" + username;
+            cout << "userdir: " << userdir << endl;
+            
+            userfile = userdir + "/" + username + ".txt";
+            cout << "userfile: " << userfile << endl;
+        
+            passfile = userdir + "/user_pass";
+            cout << "passfile: " << passfile << endl;
+            
+        
+            //clear rcvd buf
+            memset(rcvd, 0, MAX);
+        
+        
+        
         }else{
             cout << "ERROR: invalid username\n";
+            send(tempsock, invalid, sizeof(invalid), 0);
+            //goes back to helo options
+            helopt(tempsock);
         }
         
+     
         
-        //tests to see what buffer is receiving & what dir/filenames will be
-        cout << "username: " << username << endl;
-            
-        userdir = "db/" + username;
-        cout << "userdir: " << userdir << endl;
-            
-        userfile = userdir + "/" + username + ".txt";
-        cout << "userfile: " << userfile << endl;
-        
-        passfile = userdir + "/user_pass";
-        cout << "passfile: " << passfile << endl;
-
-        //clear rcvd buf
-        memset(rcvd, 0, MAX);
-            
-        if(alreadyhave(userdir.c_str())){//works
+        //works
+        if(alreadyhave(userdir.c_str())){
             cout << "Already have file.\n";
             //have logged in before, reply with 334 dXNlcm5hbWU6
             send(tempsock, auth_password, sizeof(auth_password), 0);
                 
-                
-            //will check to see if passwords match-- works
+            //will check to see if passwords match
             if(recv(tempsock, rcvd, MAX, 0) > 0){
-                    
-                if(pcheck(rcvd, username)){
-                    //password authorized
-                    send(tempsock, valid, sizeof(valid), 0);
-                    mailfrom(tempsock);
-                }else{
-                    //password invalid
-                    send(tempsock, invalid, sizeof(invalid), 0);
-                    //back to helopt()
-                    helopt(tempsock);
-                }
+                rcvd[strlen(rcvd) - 1] = '\0';
+
+                pcheck(tempsock, rcvd, passfile, username);
+                
             }
         }else{//have not logged in before
                 
@@ -382,17 +382,26 @@ void auth(int tempsock){
             
             //gives different random number each time--ignore warning(this works)
             srand(time(NULL));
+            pinit = rand() % 90000 + 10000;
             
-            for (int i=0; i<5; ++i){
-                pinit[i] = rand() % 10; //range 0 to 9
-                cout << pinit[i];
-                op << pinit[i];
-            }
-            cout << endl;
+            cout << pinit << endl;
+            spinit = to_string(pinit);
             
             //sending "PASSWORD: xxxxx
-            send(tempsock, auth_first, sizeof(auth_first), 0);
-                
+            up = auth_first + spinit;
+            send(tempsock, up.c_str(), MAX, 0);
+            
+            //add 447 and encode
+            pinit += 447;
+            cout << pinit << endl;
+            spinit = to_string(pinit);
+            //ignore warning: this works
+            encodepass = base64_encode(reinterpret_cast<const unsigned char*>(spinit.c_str()), spinit.length());
+            
+            cout << encodepass << endl;
+            //puts encoded password into file
+            op << encodepass;
+
             //if received 330 code & temp password-->terminate connection
             cout << "Socket closing...\n";
             //wait 5 seconds and close connection
@@ -402,55 +411,72 @@ void auth(int tempsock){
     }
 }
 
-bool pcheck(char buf[], string fname){
-    // add '447' to password & encode in base-64
-    // stores the encoded password w the corresponding username in hidden file “.user_pass” in db folder
+
+void pcheck(int tempsock, char buf[], string fname, string un){
     
-    string buffer = string(buf);
-    int in, fcheck;
-    char pc[5];
-    string file;
+    cout << "entered pcheck\n";
     
-    
-    
-    // need to convert char buf[] from base64
-    
-    
-    //buffer string->int
-    in = stoi(buffer);
-    //add 447 to in
-    in += 447;
+    string enpas, depas;
+    string sbuf = string(buf);
+    int in= stoi(sbuf);
+    string basepas;
+    ifstream ifs;
+    char rcvd[MAX];
     
     
-    
-    
-    
-    
-    
-    //convert both FROM base64
-    
-    //add 447 to each one
-    
-    //convert both TO base64
-    
-    //check if they match
-    if(in == fcheck){
-       
-        //passwords match
-        return true;
-     
-    }else{
+    ifs.open(fname);
+    if (ifs.is_open()) {
+        cout << fname << " is open\n";
         
-        return false;
+        getline(ifs, basepas);
+        cout<< "basepas: " << basepas;
+        
     }
     
+    //add 447 to input number & store in sbuf
+    in += 447;
+    sbuf = to_string(in);
     
+    //converts to base 64
+    enpas = base64_encode(reinterpret_cast<const unsigned char*>(sbuf.c_str()), sbuf.length());
+    
+    cout << "enpas: " << enpas;
+    
+    
+    //check if they match
+    if(enpas == basepas){
+       
+        //passwords match
+        send(tempsock, valid, sizeof(valid), 0);
+        
+        if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+            if (strcmp(rcvd, "mail\n") == 0){
+                printf("%s\n", "Recognized mail.");
+                send(tempsock, mail, sizeof(mail), 0);
+                memset(rcvd, 0, MAX);
+                mailfrom(tempsock, un);
+            }else{
+                send(tempsock, order, sizeof(order), 0);
+                memset(rcvd, 0, MAX);
+                helopt(tempsock);
+            }
+        }
+        
+        
+        
+
+    }else{
+        
+        //passwords don't match
+        send(tempsock, invalid, sizeof(invalid), 0);
+        helopt(tempsock);
+    }
 }
 
 
 
 //after entering mail command, user taken to this method
-void mailfrom(int tempsock){
+void mailfrom(int tempsock, string un){
     
     cout << "Entered mail method\n";
     
@@ -473,25 +499,25 @@ void mailfrom(int tempsock){
         send(tempsock, okay, sizeof(okay), 0);
         
         //sets foldername to senders email address
-        fold =  "db/" + uname;
+        fold =  "db/" + un + "/" +un + ".txt";
 
         
         //checks if folder is already there
-        if(alreadyhave(fold.c_str())){
-            cout << "This folder already exists\n";
-            fname =  fold + "/" + uname + to_string(var);
-            var++;
-        }else{
+        //if(alreadyhave(fold.c_str())){
+          //  cout << "This folder already exists\n";
+            //fname =  fold + "/" + un + to_string(var);
+            //var++;
+        //}else{
             //make folder for user
-            mkdir(fold.data(), 0700);
-            fname = fold + "/" + uname;
-        }
+          //  mkdir(fold.data(), 0700);
+            //fname = fold + "/" + uname;
+        //}
         
         //clear memory buffer
         memset(rcvd, 0, MAX);
 
         //opens email file
-        of.open(fname);
+        of.open(fold);
         
         //prints time and who from if open then sends to rcpt method
         if(of.is_open()){

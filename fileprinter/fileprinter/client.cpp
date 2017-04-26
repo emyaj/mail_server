@@ -115,32 +115,27 @@ int main(int argc , char *argv[]){
     //infinite unless entering quit
     while (fgets(send_buf, MAX, stdin) != NULL){
         
-        
-        
        if (send(sock, send_buf, MAX, 0) == -1){
                 printf("%s\n", "Message failed to send to server.");
                 
-            } else{
-                //small check to make sure message is sending from client to server
-                //printf("%s\n", "Message sent to server.");
-                //clear buffer
-                memset(send_buf, 0, MAX);
-            }
-        
-            //should receive message from server & print error if no success receiving 
-                if (recv(sock, rcv_buf, MAX, 0) == -1){
-                    cout << "Receive error.\n";
-                }else if(strcmp(rcv_buf, "221- CONNECTION TERMINATED.\n") == 0){
-                    cout << "Closing client socket.\n";
-                    close(sock);
-                    break;
-                }else{//otherwise go on to send response & subsequently clear buffer
-                cout << rcv_buf;
-                memset(rcv_buf, 0, MAX);
-                }
-       
-        
-
+        } else{
+            //small check to make sure message is sending from client to server
+            //printf("%s\n", "Message sent to server.");
+            //clear buffer
+            memset(send_buf, 0, MAX);
+        }
+    
+        //should receive message from server & print error if no success receiving
+        if (recv(sock, rcv_buf, MAX, 0) == -1){
+            cout << "Receive error.\n";
+        }else if(strcmp(rcv_buf, "221- CONNECTION TERMINATED.\n") == 0){
+            cout << "Closing client socket.\n";
+            close(sock);
+            break;
+        }else{//otherwise go on to send response & subsequently clear buffer
+        cout << rcv_buf;
+        memset(rcv_buf, 0, MAX);
+        }
     }
 }
 
@@ -149,4 +144,3 @@ int main(int argc , char *argv[]){
 
 // g++ -o cl client.cpp
 // ./cl 127.0.0.1 2345
-
