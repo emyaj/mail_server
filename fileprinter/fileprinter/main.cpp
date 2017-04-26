@@ -42,7 +42,7 @@ const static char help[] = "214- OPTIONS:\n Type one of the following & hit ENTE
                             "'data'  to begin data field of message.\n"
                             "'quit' to close the connection.\n"; //help dialogue
 const static char helo[] = "250- HELO.\n"; //necessary to receive from client before you can start SMTP connection
-const static char mail[] = "250- MAIL FROM?: \n"; //used to initiate SMTP transaction
+const static char mail[] = "250- MAIL FROM? (must use the same email address that was used to log in) \n"; //used to initiate SMTP transaction
 const static char rcpt[] = "250- RCPT TO?: \n"; //to identify individual recipient of message
 const static char data[] = "354- DATA: \n"; //used to ask for data section of e-mail
 const static char quit[] = "221- CONNECTION TERMINATED.\n"; //terminates client-server communication
@@ -55,6 +55,7 @@ const static char auth_first[] = "330- PASSWORD GENERATED: "; //first log-in
 const static char valid[] = "235- AUTHENTICATION SUCCEEDED\n"; //when log in is successful
 const static char invalid[] = "535- AUTHENTICATION CREDENTIALS INVALID\n"; //if passwords don't match
 const static char auth_req[] = "530- AUTHENTICATION REQUIRED\n"; //if mail entered before auth
+const static char invalid_rcpt[] = "535- INVALID RCPT\n"; //if passwords don't match
 
 
 //the multithread function
@@ -65,10 +66,11 @@ void helofirst(int tempsock);
 void helopt(int tempsock);
 void wannaquit(int tempsock);
 void mailfrom(int tempsock, string un);
-void mailto(ofstream &os, int tempsock);
+void mailto(string sender, int tempsock);
 void mailcontent(ofstream &os, int tempsock);
 bool alreadyhave(const char* filename);
 void auth(int tempsock);
+bool acheck(string username);
 void pcheck(int tempsock, char buf[], string fname, string un);
 
 void Sleep(float s){
@@ -85,8 +87,6 @@ void *get_in_addr(struct sockaddr *sa){
     }
     return &(((struct sockaddr_in6 *)sa)->sin6_addr);
 }
-
-
 
 
 
@@ -302,8 +302,6 @@ void auth(int tempsock){
     char* dt = ctime(&thatime); //used for putting timestamp on email
     ofstream op; //writes to pass file
     ofstream of; //writes to mail file
-    char at[] = "@447.edu";
-   
 
     
     //receive username
@@ -312,19 +310,10 @@ void auth(int tempsock){
         rcvd[strlen(rcvd) - 1] = '\0';
         username = string(rcvd);
         
-       //loop stores everything after the @ into 'atcheck'
-        for(int i=0; i< sizeof(username); i++){
-            if (username[i]=='@'){
-             //cout << "@ sign found\n";
-                for(int j=i; j < (sizeof(username)-i); j++){
-                    atcheck += username[j];
-                }
-            }
-        }
+    
         
         //makes sure email is @447.edu
-        if (strcmp(atcheck.c_str(), at)==0){
-            cout << "valid username\n";
+        if (acheck(username)){
        
             //tests to see what buffer is receiving & what dir/filenames will be
             cout << "username: " << username << endl;
@@ -345,7 +334,6 @@ void auth(int tempsock){
         
         
         }else{
-            cout << "ERROR: invalid username\n";
             send(tempsock, invalid, sizeof(invalid), 0);
             //goes back to helo options
             helopt(tempsock);
@@ -364,7 +352,6 @@ void auth(int tempsock){
                 rcvd[strlen(rcvd) - 1] = '\0';
 
                 pcheck(tempsock, rcvd, passfile, username);
-                
             }
         }else{//have not logged in before
                 
@@ -408,6 +395,32 @@ void auth(int tempsock){
             Sleep(5);
             close(tempsock);
         }
+    }
+}
+
+
+bool acheck(string username){
+    
+    char at[] = "@447.edu";
+    string atcheck;
+    
+    //loop stores everything after the @ into 'atcheck'
+    for(int i=0; i< sizeof(username); i++){
+        if (username[i]=='@'){
+            //cout << "@ sign found\n";
+            for(int j=i; j < (sizeof(username)-i); j++){
+                atcheck += username[j];
+            }
+        }
+    }
+    
+    //makes sure email is @447.edu
+    if (strcmp(atcheck.c_str(), at)==0){
+        cout << "valid username\n";
+        return true;
+    }else{
+        cout << "ERROR: invalid username\n";
+        return false;
     }
 }
 
@@ -482,11 +495,6 @@ void mailfrom(int tempsock, string un){
     
     char rcvd[MAX];
     string uname, fold, fname;
-    ofstream of;
-    time_t thatime = time(0);
-    char* dt = ctime(&thatime); //used for putting timestamp on email
-    int var = 1;
-
     
     //receive here who the mail is from
     if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
@@ -494,40 +502,26 @@ void mailfrom(int tempsock, string un){
         rcvd[strlen(rcvd) - 1] = '\0';
         uname = string(rcvd);
         
+      
+        if(un!=uname){
+            send(tempsock, invalid, sizeof(invalid), 0);
+            //back to helopt
+            helopt(tempsock);
+        }
+        
         //writes on server window who the sender is
         cout << "Message from: " << uname << "\n";
-        send(tempsock, okay, sizeof(okay), 0);
-        
-        //sets foldername to senders email address
-        fold =  "db/" + un + "/" +un + ".email";
 
-        
-        //checks if folder is already there
-        //if(alreadyhave(fold.c_str())){
-          //  cout << "This folder already exists\n";
-            //fname =  fold + "/" + un + to_string(var);
-            //var++;
-        //}else{
-            //make folder for user
-          //  mkdir(fold.data(), 0700);
-            //fname = fold + "/" + uname;
-        //}
+        send(tempsock, okay, sizeof(okay), 0);
         
         //clear memory buffer
         memset(rcvd, 0, MAX);
 
-        //opens email file
-        of.open(fold);
-        
-        //prints time and who from if open then sends to rcpt method
-        if(of.is_open()){
-            of << dt;
-            of << "Mail from: " << uname << endl;
-            //send to rcpt method
-            mailto(of, tempsock);
-        }
+        //send to rcpt method
+        mailto(un, tempsock);
         
     }else{
+        //out of order commands
         send(tempsock, order, sizeof(order), 0);
         //goes back to helo options
         helopt(tempsock);
@@ -537,15 +531,19 @@ void mailfrom(int tempsock, string un){
 
 
 //method writes who the mail is from
-void mailto(ofstream &os, int tempsock){
+void mailto(string sender, int tempsock){
     
     char rcvd[MAX];
-    string recip;
+    ofstream of;
+    string recip, fold, fname;
+    time_t thatime = time(0);
+    char* dt = ctime(&thatime); //used for putting timestamp on email
     
-    while(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+    
+    if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
     
         if(strcmp(rcvd, "rcpt\n") == 0){
-            
+            //sends rcpt to:?
             send(tempsock, rcpt, sizeof(rcpt), 0);
             //clears buffer to receive again
             memset(rcvd, 0, MAX);
@@ -554,8 +552,31 @@ void mailto(ofstream &os, int tempsock){
             recv(tempsock, rcvd, sizeof(rcvd), 0);
             rcvd[strlen(rcvd) - 1] = '\0'; //makes buffer ignore '\n'
             recip = string(rcvd);
-            os << "Mail rcpt: " << recip << "@447.edu\n";
-
+            
+            
+            //sets foldername to senders email address
+            fold = "db/" + recip;
+            mkdir(fold.c_str(), 0700);
+            fname =  "db/" + recip + "/" +recip + ".email";
+            
+            //opens email file
+            of.open(fname);
+            
+            if(of.is_open()){
+                of << dt;
+                of << "Mail from: <" << sender << ">" << endl;
+                of << "Mail to: <" << recip << ">" <<endl;
+            } else{
+                cout << "failed to open" << fname << endl;
+            }
+            
+            if(!acheck(recip)){
+                //tells user they've entered an invalid rcpt
+                send(tempsock, invalid_rcpt, sizeof(invalid_rcpt), 0);
+                //send back to helopt
+                helopt(tempsock);
+            }
+            
             //clear buffer memory again
             memset(rcvd, 0, MAX);
             
@@ -563,14 +584,14 @@ void mailto(ofstream &os, int tempsock){
             send(tempsock, okay, sizeof(okay), 0);
 
             //go to data method
-            mailcontent(os, tempsock);
+            mailcontent(of, tempsock);
             
         }else{
-            send(tempsock, order, sizeof(order), 0);
-            //goes back to helo options
-            helopt(tempsock);
+        //out of order
+        send(tempsock, order, sizeof(order), 0);
+        //goes back to helo options
+        helopt(tempsock);
         }
-    
     }
 }
 
