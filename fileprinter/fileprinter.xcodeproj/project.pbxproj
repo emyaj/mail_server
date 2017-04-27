@@ -10,6 +10,8 @@
 		3B8DEC031E9F0A2800664E48 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B8DEC021E9F0A2800664E48 /* main.cpp */; };
 		3B8DEC0A1EA82B8E00664E48 /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B8DEC091EA82B8E00664E48 /* client.cpp */; };
 		3B9CD5E71EAFFB7D007F2F0C /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B9CD5E51EAFFB7D007F2F0C /* base64.cpp */; };
+		3B9CD5EC1EB1AD32007F2F0C /* udpserv.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B9CD5EB1EB1AD32007F2F0C /* udpserv.cpp */; };
+		3B9CD5EE1EB1ADCB007F2F0C /* rcvr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B9CD5ED1EB1ADCB007F2F0C /* rcvr.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -30,6 +32,8 @@
 		3B8DEC091EA82B8E00664E48 /* client.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = client.cpp; sourceTree = "<group>"; };
 		3B9CD5E51EAFFB7D007F2F0C /* base64.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = base64.cpp; sourceTree = "<group>"; };
 		3B9CD5E61EAFFB7D007F2F0C /* base64.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = base64.hpp; sourceTree = "<group>"; };
+		3B9CD5EB1EB1AD32007F2F0C /* udpserv.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = udpserv.cpp; sourceTree = "<group>"; };
+		3B9CD5ED1EB1ADCB007F2F0C /* rcvr.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = rcvr.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,6 +70,8 @@
 				3B8DEC091EA82B8E00664E48 /* client.cpp */,
 				3B9CD5E51EAFFB7D007F2F0C /* base64.cpp */,
 				3B9CD5E61EAFFB7D007F2F0C /* base64.hpp */,
+				3B9CD5EB1EB1AD32007F2F0C /* udpserv.cpp */,
+				3B9CD5ED1EB1ADCB007F2F0C /* rcvr.cpp */,
 			);
 			path = fileprinter;
 			sourceTree = "<group>";
@@ -128,7 +134,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				3B8DEC0A1EA82B8E00664E48 /* client.cpp in Sources */,
+				3B9CD5EC1EB1AD32007F2F0C /* udpserv.cpp in Sources */,
 				3B8DEC031E9F0A2800664E48 /* main.cpp in Sources */,
+				3B9CD5EE1EB1ADCB007F2F0C /* rcvr.cpp in Sources */,
 				3B9CD5E71EAFFB7D007F2F0C /* base64.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

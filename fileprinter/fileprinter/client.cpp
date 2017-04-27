@@ -46,7 +46,7 @@ int main(int argc , char *argv[]){
 
     //initial argument check to see if all are there
     if (argc != 3) {
-        fprintf(stderr,"usage: hostname or port\n");
+        fprintf(stderr,"forgot hostname or port\n");
         exit(1);
     }
     
