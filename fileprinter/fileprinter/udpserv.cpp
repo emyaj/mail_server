@@ -33,6 +33,10 @@
 
 int MAX= 1080;
 const static char okay[] = "HTTP/1.1 200 OK";
+const static char notokay[] = "HTTP/1.1 200 INVALID";
+
+bool alreadyhave(const char* filename);
+bool acheck(string username);
 
 
 using namespace std;
@@ -52,7 +56,7 @@ int main(int argc, char * argv[]) {
 
     int sock, status;
     ssize_t numbytes;
-    string portnum;
+    string portnum, fname, dname;
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr;
     socklen_t addr_len;
@@ -60,7 +64,8 @@ int main(int argc, char * argv[]) {
     char rcv[MAX];
     time_t thatime = time(0);
     char* dt = ctime(&thatime); //used for putting timestamp on email
-    
+    ifstream ifs;
+    ofstream ofs;
     
     //argc should be 2 for correct execution
     if (argc != 2) {
@@ -81,6 +86,8 @@ int main(int argc, char * argv[]) {
     }cout << "200: Socket created.\n";
 
 
+    mkdir("db/recpt" ,0700);
+    
     portnum = argv[1];
     cout << "Using port : " << portnum << "\n" ;
     
@@ -88,11 +95,6 @@ int main(int argc, char * argv[]) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         return 1;
     }
-
-    
-    
-    
-    
     
     // loop through all the results and bind to the first we can
     for(p = servinfo; p != NULL; p = p->ai_next) {
@@ -115,6 +117,8 @@ int main(int argc, char * argv[]) {
     }
     
     
+    
+    
     addr_len = sizeof their_addr;
     
     //receive from client
@@ -122,19 +126,83 @@ int main(int argc, char * argv[]) {
         perror("recvfrom");
         exit(1);
     }
+    //rcv[strlen(rcv) - 1] = '\0';
+
+    
+    if(!acheck(string(rcv))){
+        sendto(sock, notokay, sizeof(notokay), 0, (struct sockaddr *)&their_addr, addr_len);
+
+    }else{
+        sendto(sock, okay, sizeof(okay), 0, (struct sockaddr *)&their_addr, addr_len);
+
+    }
+    
+    //rcv[strlen(rcv) - 1] = '\0';
+    dname ="db/recpt/" + string(rcv);
+    cout << "dname: "<< dname << endl;
+    fname = dname + "/" + string(rcv);
+    cout << "fname: "<< fname << endl;
+
+    mkdir(fname.c_str(),0700);
+    
+    
+    ofs.open(fname);
+    
+    ofs << dt;
     
     //send to client
-    sendto(sock, okay, sizeof(okay), 0, (struct sockaddr *)&their_addr, addr_len);
+    //sendto(sock, okay, sizeof(okay), 0, (struct sockaddr *)&their_addr, addr_len);
+    //sendto(sock, okay, sizeof(okay), 0, (struct sockaddr *)&their_addr, addr_len);
+
+    
+    
+    cout << "listener: packet is " << numbytes << " bytes long\n" ;
+    cout << "rcv: "<< rcv << endl;
+    
+    
+    
+    
+    
+    
     
     
     freeaddrinfo(servinfo);
-    cout << "listener: got packet from " << inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s) << endl;
-    cout << "listener: packet is " << numbytes << " bytes long\n" ;
-    rcv[numbytes] = '\0';
-    cout << "rcv: "<< rcv << endl;
     close(sock);
     return 0;
     
     
     
+}
+
+
+bool acheck(string username){
+    
+    char at[] = "@447.edu";
+    string atcheck;
+    
+    //loop stores everything after the @ into 'atcheck'
+    for(int i=0; i< sizeof(username); i++){
+        if (username[i]=='@'){
+            //cout << "@ sign found\n";
+            for(int j=i; j < (sizeof(username)-i); j++){
+                atcheck += username[j];
+            }
+        }
+    }
+    
+    //makes sure email is @447.edu
+    if (strcmp(atcheck.c_str(), at)==0){
+        cout << "valid username\n";
+        return true;
+    }else{
+        cout << "ERROR: invalid username\n";
+        return false;
+    }
+}
+
+//should return 0 if file exists and -1 if not
+bool alreadyhave(const char* filename){
+    
+    struct stat fileInfo;
+    return stat(filename, &fileInfo) == 0;
 }

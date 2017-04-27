@@ -42,7 +42,7 @@ int main(int argc , char *argv[]){
     int sock, status;
     ssize_t numbytes;
     string request;
-    char buf[MAX];
+    char rbuf[MAX], sbuf[MAX];
     struct sockaddr_storage their_addr;
     socklen_t addr_len;
 
@@ -70,7 +70,7 @@ int main(int argc , char *argv[]){
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM; //UDP socket
     
-     
+    
     
     if ((status = getaddrinfo(argv[1], argv[2], &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
@@ -85,29 +85,34 @@ int main(int argc , char *argv[]){
         }
         break;
     }
-    
-    
     if (p == NULL) {
         fprintf(stderr, "client: failed to create socket\n");
         return 2;
     }
     
+    
+    
+    cout << "Enter username of mail to read: \n";
+    cin >> request;
+    
+    
     //send to server
-    if (sendto(sock, argv[2], sizeof(argv[2]), 0, p->ai_addr, p->ai_addrlen) == -1) {
+    if (sendto(sock, request.c_str(), sizeof(request), 0, p->ai_addr, p->ai_addrlen) == -1) {
         perror("client: sendto");
         exit(1);
     }
-    
-    
     
     cout<< "client: sent "<<  numbytes << " to " << argv[1] << endl;
    
     
     //receive from server
-    recvfrom(sock ,buf, sizeof(buf), 0, p->ai_addr, &p->ai_addrlen);
-    cout << "buf contents: " << buf << endl;
-    
-    
+    recvfrom(sock ,rbuf, sizeof(rbuf), 0, p->ai_addr, &p->ai_addrlen);
+    cout << "buf contents: " << rbuf << endl;
+    //clear
+    memset(rbuf, 0, MAX);
+    //recvfrom(sock ,rbuf, sizeof(rbuf), 0, p->ai_addr, &p->ai_addrlen);
+    //cout << "buf contents: " << rbuf << endl;
+
     
     
     freeaddrinfo(servinfo);

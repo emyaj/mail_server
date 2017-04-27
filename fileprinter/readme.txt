@@ -55,3 +55,11 @@ when user wants to utilize a new line, they simply hit enter
 The server will recognize it received a line and will keep recognizing new lines until single . 
 
 12. User is then instructed to quit
+
+
+
+==============
+UDP
+1. execute both commands
+   ./us (port)
+   ./rc (host) (port)

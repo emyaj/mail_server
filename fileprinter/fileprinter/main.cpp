@@ -5,6 +5,8 @@
 //  Created by Jayme Cartwright on 4/12/17.
 //  Copyright © 2017 Jayme Cartwright. All rights reserved.
 //
+#include <sys/ioctl.h>
+#include <net/if.h>
 
 #include <iostream> //namespace std
 #include <sys/stat.h> //for mkdir
@@ -24,7 +26,8 @@
 #include <netdb.h>
 #include <cstring>
 #include <time.h>
-
+#include <iomanip>
+#include <sstream>
 #include "base64.hpp"
 
 
@@ -57,6 +60,9 @@ const static char invalid[] = "535- AUTHENTICATION CREDENTIALS INVALID\n"; //if 
 const static char auth_req[] = "530- AUTHENTICATION REQUIRED\n"; //if mail entered before auth
 const static char invalid_rcpt[] = "535- INVALID RCPT\n"; //if passwords don't match
 
+string servip;
+
+
 
 //the multithread function
 void *connection_handler(void *);
@@ -72,6 +78,10 @@ bool alreadyhave(const char* filename);
 void auth(int tempsock);
 bool acheck(string username);
 void pcheck(int tempsock, char buf[], string fname, string un);
+
+void logsend(string pnum, string code, string desc);
+void logrecv(string pnum, string code, string desc);
+
 
 
 void sigchld_handler(int s){
@@ -90,7 +100,7 @@ void *get_in_addr(struct sockaddr *sa){
 int main(int argc, char * argv[]) {
     
     
-    int listenfd, status, sock, sendfd;
+    int listenfd, status, sock, sendfd, so;
     string name, folname, fistr, rcpt, datamsg, portnum;
     ofstream of;
     struct addrinfo hints, *servinfo, *p;
@@ -99,6 +109,8 @@ int main(int argc, char * argv[]) {
     struct sockaddr_in client_addr; // connector's address information
     pid_t childp; //represents process ID
     string send_buf;
+    struct ifreq ifr;
+
     
     
     //argc should be 2 for correct execution
@@ -106,6 +118,29 @@ int main(int argc, char * argv[]) {
         fprintf(stderr,"forgot port number\n");
         exit(1);
     }
+    
+    
+    
+    //Get server address
+    so = socket(AF_INET, SOCK_DGRAM, 0);
+    
+    //I want an IPv4 IP address
+    ifr.ifr_addr.sa_family = AF_INET;
+    
+    //Get IP address attached to "wlp2s0"
+    strncpy(ifr.ifr_name, "wlp2s0", IFNAMSIZ-1);
+    ioctl(so, SIOCGIFADDR, &ifr);
+    
+    close(so);
+    
+    /* display result */
+    servip = inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
+    
+    
+    
+    
+    
+    
     
     //creates TCP socket & if socket value < 0, writes error.
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -159,6 +194,7 @@ int main(int argc, char * argv[]) {
         fprintf(stderr, "server: failed to bind\n");
         exit(1);
     }
+    
     
     //free the linked-list
     freeaddrinfo(servinfo);
@@ -224,10 +260,14 @@ void helofirst(int tempsock){
     char rcvd[MAX];
 
     while(recv(tempsock, rcvd, MAX, 0) > 0){
+        logrecv(string(rcvd), "250", "Client helo");
         
         if (strcmp(rcvd, "helo\n") == 0){
             printf("%s\n", "Recognized helo.");
             send(tempsock, helo, sizeof(helo), 0);
+            logsend(helo, "250", "Server reply helo");
+            
+            
             memset(rcvd, 0, MAX);
             helopt(tempsock);
             
@@ -235,6 +275,8 @@ void helofirst(int tempsock){
         }else {
             printf("%s\n", "Strcmp failed to recognize helo.");
             send(tempsock, order, sizeof(order), 0);
+            logsend(order, "503", "Command out of order");
+
             memset(rcvd, 0, MAX);
             
         }
@@ -250,31 +292,41 @@ void helopt(int tempsock){
     while(recv(tempsock, rcvd, MAX, 0) > 0){
         if (strcmp(rcvd, "helo\n") == 0){
             printf("%s\n", "Recognized helo.");
+            logrecv(string(rcvd), "250", "Client helo");
             send(tempsock, helo, sizeof(helo), 0);
+            logsend(helo, "250", "Server reply helo");
             memset(rcvd, 0, MAX);
          
         }else if(strcmp(rcvd, "help\n") == 0){
+            logrecv(string(rcvd), "214", "Help menu");
             //send help message
             printf("%s\n", "Recognized help.");
             send(tempsock, help, sizeof(help), 0);
+            logsend(help, "250", "Server reply help menu");
             memset(rcvd, 0, MAX);
             
         }else if(strcmp(rcvd, "auth\n") == 0){
+            logrecv(string(rcvd), "334", "Auth username");
             //send auth message
             printf("%s\n", "Recognized auth.");
             //request username
             send(tempsock, auth_username, sizeof(auth_username), 0);
+            logsend(auth_username, "334", "Server reply username prompt");
             memset(rcvd, 0, MAX);
             //needs to enter auth method here
             auth(tempsock);
             
         }else if(strcmp(rcvd, "mail\n") == 0){
+            logrecv(string(rcvd), "250", "Mail received");
             //send auth required first
             printf("%s\n", "Recognized mail.");
             send(tempsock, auth_req, sizeof(auth_req), 0);
+            logsend(auth_req, "530", "Server reply need auth first");
+
             memset(rcvd, 0, MAX);
 
         }else if(strcmp(rcvd, "quit\n") == 0){
+            logrecv(string(rcvd), "221", "Request quit");
             //send quit message
             printf("%s\n", "Recognized quit.");
             //needs to actually close socket here
@@ -283,6 +335,8 @@ void helopt(int tempsock){
         }else{
             printf("%s\n", "Strcmp failed to recognize helo, help, auth, or quit.");
             send(tempsock, syntax_er, sizeof(syntax_er), 0);
+            logsend(syntax_er, "530", "Server reply syntax error");
+
             memset(rcvd, 0, MAX);
         }
     }
@@ -304,6 +358,8 @@ void auth(int tempsock){
     
     //receive username
     if(recv(tempsock, rcvd, MAX, 0) > 0){
+        logrecv(string(rcvd), "250", "Username received");
+
         //the following line removes the newline that causes a '?'
         rcvd[strlen(rcvd) - 1] = '\0';
         username = string(rcvd);
@@ -314,8 +370,11 @@ void auth(int tempsock){
             memset(rcvd, 0, MAX);
             //send invalid buffer
             send(tempsock, invalid, sizeof(invalid), 0);
+            logsend(invalid, "535", "Server reply invalid username");
+
             //get in new username
             recv(tempsock, rcvd, MAX, 0);
+            logrecv(string(rcvd), "250", "Username received");
             rcvd[strlen(rcvd) - 1] = '\0';
             username = string(rcvd);
         }
@@ -344,11 +403,12 @@ void auth(int tempsock){
             cout << "Already have file.\n";
             //have logged in before, reply with 334 dXNlcm5hbWU6
             send(tempsock, auth_password, sizeof(auth_password), 0);
-                
+            logsend(auth_password, "535", "Server reply requesting password");
+
             //will check to see if passwords match
             if(recv(tempsock, rcvd, MAX, 0) > 0){
                 rcvd[strlen(rcvd) - 1] = '\0';
-
+                logrecv(string(rcvd), "250", "Password received");
                 pcheck(tempsock, rcvd, passfile, username);
             }
         }else{//have not logged in before
@@ -375,16 +435,21 @@ void auth(int tempsock){
             //sending "PASSWORD: xxxxx
             up = auth_first + spinit + "\n" + okplz;
             send(tempsock, up.c_str(), MAX, 0);
-            
+            logsend(up.c_str(), "330", "Server reply generated password");
+
             
             recv(tempsock, rcvd, MAX, 0) ;
-            
+            logrecv(string(rcvd), "250", "OK attempt received");
+
             while(strcmp(rcvd, "ok\n") != 0){
                 //clear rcvd buf
                 memset(rcvd, 0, MAX);
                 //send quit message
                 send(tempsock, okplz, sizeof(okplz), 0);
+                logsend(okplz, "503", "Server reply enter ok next");
+
                 recv(tempsock, rcvd, MAX, 0) ;
+                logrecv(string(rcvd), "250", "OK attempt received");
 
             }
             
@@ -469,15 +534,22 @@ void pcheck(int tempsock, char buf[], string fname, string un){
        
         //passwords match
         send(tempsock, valid, sizeof(valid), 0);
-        
+        logsend(valid, "235", "Server reply password valid");
+
         if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+            logrecv(string(rcvd), "250", "Password attempt received");
+
             if (strcmp(rcvd, "mail\n") == 0){
                 printf("%s\n", "Recognized mail.");
                 send(tempsock, mail, sizeof(mail), 0);
+                logsend(mail, "250", "Server reply mail from");
+
                 memset(rcvd, 0, MAX);
                 mailfrom(tempsock, un);
             }else{
                 send(tempsock, order, sizeof(order), 0);
+                logsend(order, "503", "Server reply out of order");
+
                 memset(rcvd, 0, MAX);
                 helopt(tempsock);
             }
@@ -490,6 +562,8 @@ void pcheck(int tempsock, char buf[], string fname, string un){
         
         //passwords don't match
         send(tempsock, invalid, sizeof(invalid), 0);
+        logsend(invalid, "535", "Server reply password invalid");
+
         helopt(tempsock);
     }
 }
@@ -506,6 +580,8 @@ void mailfrom(int tempsock, string un){
     
     //receive here who the mail is from
     if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+        logrecv(string(rcvd), "250", "Password attempt received");
+
         //the following line removes the newline that causes a '?'
         rcvd[strlen(rcvd) - 1] = '\0';
         uname = string(rcvd);
@@ -516,8 +592,12 @@ void mailfrom(int tempsock, string un){
             memset(rcvd, 0, MAX);
             
             send(tempsock, invalid, sizeof(invalid), 0);
-            //back to helopt
+            logsend(invalid, "535", "Server reply password invalid");
+
+            
             recv(tempsock, rcvd, sizeof(rcvd), 0);
+            logrecv(string(rcvd), "250", "Password attempt received");
+
             rcvd[strlen(rcvd) - 1] = '\0';
             uname = string(rcvd);
         }
@@ -526,6 +606,8 @@ void mailfrom(int tempsock, string un){
         cout << "Message from: " << uname << "\n";
 
         send(tempsock, okay, sizeof(okay), 0);
+        logsend(okay, "250", "Server reply OK");
+
         
         //clear memory buffer
         memset(rcvd, 0, MAX);
@@ -536,6 +618,8 @@ void mailfrom(int tempsock, string un){
     }else{
         //out of order commands
         send(tempsock, order, sizeof(order), 0);
+        logsend(order, "503", "Server reply out of order");
+
         //goes back to helo options
         helopt(tempsock);
     }
@@ -554,15 +638,20 @@ void mailto(string sender, int tempsock){
     
     
     if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
-    
+        logrecv(string(rcvd), "250", "Rcvd command issued");
+
         if(strcmp(rcvd, "rcpt\n") == 0){
             //sends rcpt to:?
             send(tempsock, rcpt, sizeof(rcpt), 0);
+            logsend(rcpt, "250", "Server reply rcpt to?");
+
             //clears buffer to receive again
             memset(rcvd, 0, MAX);
 
             //this should receive the recipient's name
             recv(tempsock, rcvd, sizeof(rcvd), 0);
+            logrecv(string(rcvd), "250", "Rcvd recipient");
+
             rcvd[strlen(rcvd) - 1] = '\0'; //makes buffer ignore '\n'
             recip = string(rcvd);
             
@@ -572,8 +661,12 @@ void mailto(string sender, int tempsock){
                 memset(rcvd, 0, MAX);
                 //tells user they've entered an invalid rcpt
                 send(tempsock, invalid_rcpt, sizeof(invalid_rcpt), 0);
+                logsend(invalid_rcpt, "535", "Server reply recpt invalid");
+
                 //this should receive the recipient's name
                 recv(tempsock, rcvd, sizeof(rcvd), 0);
+                logrecv(string(rcvd), "250", "Rcvd recipient");
+
                 rcvd[strlen(rcvd) - 1] = '\0'; //makes buffer ignore '\n'
                 recip = string(rcvd);
 
@@ -599,6 +692,7 @@ void mailto(string sender, int tempsock){
             
             //send ok message
             send(tempsock, okay, sizeof(okay), 0);
+            logsend(okay, "250", "Server reply OK");
 
             //go to data method
             mailcontent(of, tempsock);
@@ -606,6 +700,8 @@ void mailto(string sender, int tempsock){
         }else{
         //out of order
         send(tempsock, order, sizeof(order), 0);
+        logsend(order, "503", "Server reply out of order");
+
         //goes back to helo options
         helopt(tempsock);
         }
@@ -622,14 +718,20 @@ void mailcontent(ofstream &os, int tempsock){
     
     //while loop here reads in each line and prints it until a single period is entered
     if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+        logrecv(string(rcvd), "250", "Data command");
+
         
         //needs to recieve data command before you can enter the data section
         if(strcmp(rcvd, "data\n") == 0){
             send(tempsock, data, sizeof(data), 0);
+            logsend(okay, "250", "Server reply DATA");
+
             memset(rcvd, 0, MAX);
 
         } else{
             send(tempsock, order, sizeof(order), 0);
+            logsend(order, "503", "Server reply out of order");
+
             memset(rcvd, 0, MAX);
             helopt(tempsock);
         }
@@ -637,6 +739,7 @@ void mailcontent(ofstream &os, int tempsock){
         
         //should receive first line of file & loop through until getting single '.'
         while( recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
+            logrecv(string(rcvd), "250", "Data line received");
 
             dta = string(rcvd);
             
@@ -645,8 +748,11 @@ void mailcontent(ofstream &os, int tempsock){
                 memset(rcvd, 0, MAX);
                 //means end of mail message
                 send(tempsock, end, sizeof(end), 0);
+                logsend(end, "503", "Server reply enter 'end'");
+
                 
                 recv(tempsock, rcvd, MAX, 0) ;
+                logrecv(string(rcvd), "250", "Try to quit");
 
                 
                 while(strcmp(rcvd, "quit\n") != 0){
@@ -654,14 +760,19 @@ void mailcontent(ofstream &os, int tempsock){
                     memset(rcvd, 0, MAX);
                     //send quit message
                     send(tempsock, end, sizeof(end), 0);
+                    logsend(end, "503", "Server reply enter 'end'");
+
                     recv(tempsock, rcvd, MAX, 0) ;
-                    
+                    logrecv(string(rcvd), "250", "Try to quit");
+
                 }
                 wannaquit(tempsock);
             }
             else{
                 os << dta;
                 send(tempsock, lin, sizeof(lin), 0);
+                logsend(lin, "250", "Server reply line received");
+
                 memset(rcvd, 0, MAX);
             }
         }
@@ -681,4 +792,56 @@ void wannaquit(int tempsock){
     cout << "Socket closing...\n";
     send(tempsock, quit, sizeof(quit), 0);
     close(tempsock);
+}
+
+void logsend(string pnum, string code, string desc){
+    time_t ltime;
+    struct tm result;
+    char chartime[32];
+    
+    ltime = time(NULL);
+    localtime_r(&ltime, &result);
+    asctime_r(&result, chartime);
+    
+    string stamp = chartime;
+    
+    int pos = stamp.find('\n');
+    chartime[pos] = '\0';
+    
+    fstream server_log;
+    server_log.open(".server_log", ios::out | ios::app);
+    
+    if (server_log)
+    {
+        
+        server_log << chartime << " From:" << servip << " To: IPv4 " << pnum << " " << code << " " << desc << "\n";
+        server_log.close();
+        
+    }
+}
+
+void logrecv(string pnum, string code, string desc){
+    time_t ltime;
+    struct tm result;
+    char chartime[32];
+    
+    ltime = time(NULL);
+    localtime_r(&ltime, &result);
+    asctime_r(&result, chartime);
+    
+    string stamp = chartime;
+    
+    int pos = stamp.find('\n');
+    chartime[pos] = '\0';
+
+    fstream server_log;
+    server_log.open(".server_log", ios::out | ios::app);
+    
+    if (server_log)
+    {
+        
+        server_log << chartime << " From: IPv4 To: " << servip << " " << pnum << " " << code << " " << desc << "\n";
+        server_log.close();
+        
+    }
 }
