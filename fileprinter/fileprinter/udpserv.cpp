@@ -32,6 +32,8 @@
 
 
 int MAX= 1080;
+const static char okay[] = "HTTP/1.1 200 OK";
+
 
 using namespace std;
 
@@ -48,13 +50,16 @@ void *get_in_addr(struct sockaddr *sa){
 
 int main(int argc, char * argv[]) {
 
-    int sock, status, numbytes;
+    int sock, status;
+    ssize_t numbytes;
     string portnum;
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr;
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
     char rcv[MAX];
+    time_t thatime = time(0);
+    char* dt = ctime(&thatime); //used for putting timestamp on email
     
     
     //argc should be 2 for correct execution
@@ -110,22 +115,23 @@ int main(int argc, char * argv[]) {
     }
     
     
-    freeaddrinfo(servinfo);
-    
-    
-    
     addr_len = sizeof their_addr;
     
-    
+    //receive from client
     if ((numbytes = recvfrom(sock, rcv, MAX-1 , 0,(struct sockaddr *)&their_addr, &addr_len)) == -1) {
         perror("recvfrom");
         exit(1);
     }
     
-    printf("listener: got packet from %s\n", inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s));
-    printf("listener: packet is %d bytes long\n", numbytes);
+    //send to client
+    sendto(sock, okay, sizeof(okay), 0, (struct sockaddr *)&their_addr, addr_len);
+    
+    
+    freeaddrinfo(servinfo);
+    cout << "listener: got packet from " << inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s) << endl;
+    cout << "listener: packet is " << numbytes << " bytes long\n" ;
     rcv[numbytes] = '\0';
-    printf("listener: packet contains \"%s\"\n", rcv);
+    cout << "rcv: "<< rcv << endl;
     close(sock);
     return 0;
     

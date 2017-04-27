@@ -20,7 +20,12 @@
 #include <iostream> //namespace std
 
 
+
+int MAX= 1080;
+
+
 using namespace std;
+
 
 void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET){
@@ -34,14 +39,23 @@ void *get_in_addr(struct sockaddr *sa){
 int main(int argc , char *argv[]){
 
     struct addrinfo hints, *servinfo, *p;
-    int sock, status, numbytes;
+    int sock, status;
+    ssize_t numbytes;
+    string request;
+    char buf[MAX];
+    struct sockaddr_storage their_addr;
+    socklen_t addr_len;
+
+
     
     //initial argument check to see if all are there
     if (argc != 3) {
         fprintf(stderr,"forgot hostname or port\n");
         exit(1);
+        
     }
     
+    request = argv[2];
     
     //creates TCP socket & if socket value < 0, writes error.
     if((sock = socket(AF_INET, SOCK_DGRAM, 0))< 0){
@@ -78,16 +92,24 @@ int main(int argc , char *argv[]){
         return 2;
     }
     
-    
-    if ((numbytes = sendto(sock, argv[2], strlen(argv[2]), 0, p->ai_addr, p->ai_addrlen)) == -1) {
+    //send to server
+    if (sendto(sock, argv[2], sizeof(argv[2]), 0, p->ai_addr, p->ai_addrlen) == -1) {
         perror("client: sendto");
         exit(1);
     }
     
-     freeaddrinfo(servinfo);
     
-    printf("client: sent %d bytes to %s\n", numbytes, argv[1]);
+    
+    cout<< "client: sent "<<  numbytes << " to " << argv[1] << endl;
+   
+    
+    //receive from server
+    recvfrom(sock ,buf, sizeof(buf), 0, p->ai_addr, &p->ai_addrlen);
+    cout << "buf contents: " << buf << endl;
+    
+    
+    
+    
+    freeaddrinfo(servinfo);
     close(sock);
-    return 0;
-    
 }
