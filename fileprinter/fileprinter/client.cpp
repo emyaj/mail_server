@@ -18,13 +18,18 @@
 #include <errno.h> //names for 'erno' values (error numbers)
 #include <signal.h>
 #include <iostream> //namespace std
+#include <sys/wait.h>
+#include <time.h>
 
 
 using namespace std;
 
 
 int MAX = 1080;
-
+void Sleep(float s){
+    int sec = int(s*1000000);
+    usleep(sec);
+}
 
 void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET){
@@ -129,7 +134,8 @@ int main(int argc , char *argv[]){
         if (recv(sock, rcv_buf, MAX, 0) == -1){
             cout << "Receive error.\n";
         }else if(strcmp(rcv_buf, "221- CONNECTION TERMINATED.\n") == 0){
-            cout << "Closing client socket.\n";
+            cout << "Closing client socket...\n";
+            Sleep(5);
             close(sock);
             break;
         }else{//otherwise go on to send response & subsequently clear buffer

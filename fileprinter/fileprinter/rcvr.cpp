@@ -70,7 +70,7 @@ int main(int argc , char *argv[]){
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM; //UDP socket
     
-    
+     
     
     if ((status = getaddrinfo(argv[1], argv[2], &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));

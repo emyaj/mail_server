@@ -73,10 +73,7 @@ void auth(int tempsock);
 bool acheck(string username);
 void pcheck(int tempsock, char buf[], string fname, string un);
 
-void Sleep(float s){
-    int sec = int(s*1000000);
-    usleep(sec);
-}
+
 void sigchld_handler(int s){
     while(waitpid(-1, NULL, WNOHANG) > 0);
 }
@@ -302,6 +299,7 @@ void auth(int tempsock){
     char* dt = ctime(&thatime); //used for putting timestamp on email
     ofstream op; //writes to pass file
     ofstream of; //writes to mail file
+    char okplz[] = "Please enter 'ok'\n";
 
     
     //receive username
@@ -375,8 +373,22 @@ void auth(int tempsock){
             spinit = to_string(pinit);
             
             //sending "PASSWORD: xxxxx
-            up = auth_first + spinit;
+            up = auth_first + spinit + "\n" + okplz;
             send(tempsock, up.c_str(), MAX, 0);
+            
+            
+            recv(tempsock, rcvd, MAX, 0) ;
+            
+            while(strcmp(rcvd, "ok\n") != 0){
+                //clear rcvd buf
+                memset(rcvd, 0, MAX);
+                //send quit message
+                send(tempsock, okplz, sizeof(okplz), 0);
+                recv(tempsock, rcvd, MAX, 0) ;
+
+            }
+            
+            
             
             //add 447 and encode
             pinit += 447;
@@ -389,11 +401,8 @@ void auth(int tempsock){
             //puts encoded password into file
             op << encodepass;
 
-            //if received 330 code & temp password-->terminate connection
-            cout << "Socket closing...\n";
-            //wait 5 seconds and close connection
-            Sleep(5);
-            close(tempsock);
+            wannaquit(tempsock);
+          
         }
     }
 }
@@ -632,9 +641,23 @@ void mailcontent(ofstream &os, int tempsock){
             dta = string(rcvd);
             
             if(strcmp(rcvd, ".\n") == 0){
+                //clear rcvd buf
+                memset(rcvd, 0, MAX);
                 //means end of mail message
                 send(tempsock, end, sizeof(end), 0);
-                helopt(tempsock);
+                
+                recv(tempsock, rcvd, MAX, 0) ;
+
+                
+                while(strcmp(rcvd, "quit\n") != 0){
+                    //clear rcvd buf
+                    memset(rcvd, 0, MAX);
+                    //send quit message
+                    send(tempsock, end, sizeof(end), 0);
+                    recv(tempsock, rcvd, MAX, 0) ;
+                    
+                }
+                wannaquit(tempsock);
             }
             else{
                 os << dta;
@@ -655,6 +678,7 @@ bool alreadyhave(const char* filename){
 
 
 void wannaquit(int tempsock){
+    cout << "Socket closing...\n";
     send(tempsock, quit, sizeof(quit), 0);
     close(tempsock);
 }
