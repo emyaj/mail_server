@@ -310,34 +310,34 @@ void auth(int tempsock){
         rcvd[strlen(rcvd) - 1] = '\0';
         username = string(rcvd);
         
-    
-        
-        //makes sure email is @447.edu
-        if (acheck(username)){
-       
-            //tests to see what buffer is receiving & what dir/filenames will be
-            cout << "username: " << username << endl;
-            
-            userdir = "db/" + username;
-            cout << "userdir: " << userdir << endl;
-            
-            userfile = userdir + "/" + username + ".email";
-            cout << "userfile: " << userfile << endl;
-        
-            passfile = userdir + "/user_pass";
-            cout << "passfile: " << passfile << endl;
-            
-        
+        //loops until email is @447.edu
+        while (!acheck(username)){
             //clear rcvd buf
             memset(rcvd, 0, MAX);
-        
-        
-        
-        }else{
+            //send invalid buffer
             send(tempsock, invalid, sizeof(invalid), 0);
-            //goes back to helo options
-            helopt(tempsock);
+            //get in new username
+            recv(tempsock, rcvd, MAX, 0);
+            rcvd[strlen(rcvd) - 1] = '\0';
+            username = string(rcvd);
         }
+        
+        
+        //tests to see what buffer is receiving & what dir/filenames will be
+        cout << "username: " << username << endl;
+        
+        userdir = "db/" + username;
+        cout << "userdir: " << userdir << endl;
+            
+        userfile = userdir + "/" + username + ".email";
+        cout << "userfile: " << userfile << endl;
+        
+        passfile = userdir + "/user_pass";
+        cout << "passfile: " << passfile << endl;
+            
+        
+        //clear rcvd buf
+        memset(rcvd, 0, MAX);
         
      
         
@@ -503,10 +503,15 @@ void mailfrom(int tempsock, string un){
         uname = string(rcvd);
         
       
-        if(un!=uname){
+        while(un!=uname){
+            //clear memory buffer
+            memset(rcvd, 0, MAX);
+            
             send(tempsock, invalid, sizeof(invalid), 0);
             //back to helopt
-            helopt(tempsock);
+            recv(tempsock, rcvd, sizeof(rcvd), 0);
+            rcvd[strlen(rcvd) - 1] = '\0';
+            uname = string(rcvd);
         }
         
         //writes on server window who the sender is
@@ -553,6 +558,19 @@ void mailto(string sender, int tempsock){
             rcvd[strlen(rcvd) - 1] = '\0'; //makes buffer ignore '\n'
             recip = string(rcvd);
             
+            while(!acheck(recip)){
+                
+                //clear buffer memory again
+                memset(rcvd, 0, MAX);
+                //tells user they've entered an invalid rcpt
+                send(tempsock, invalid_rcpt, sizeof(invalid_rcpt), 0);
+                //this should receive the recipient's name
+                recv(tempsock, rcvd, sizeof(rcvd), 0);
+                rcvd[strlen(rcvd) - 1] = '\0'; //makes buffer ignore '\n'
+                recip = string(rcvd);
+
+            }
+            
             
             //sets foldername to senders email address
             fold = "db/" + recip;
@@ -569,16 +587,7 @@ void mailto(string sender, int tempsock){
             } else{
                 cout << "failed to open" << fname << endl;
             }
-            
-            if(!acheck(recip)){
-                //tells user they've entered an invalid rcpt
-                send(tempsock, invalid_rcpt, sizeof(invalid_rcpt), 0);
-                //send back to helopt
-                helopt(tempsock);
-            }
-            
-            //clear buffer memory again
-            memset(rcvd, 0, MAX);
+
             
             //send ok message
             send(tempsock, okay, sizeof(okay), 0);
@@ -601,7 +610,7 @@ void mailcontent(ofstream &os, int tempsock){
     char rcvd[MAX];
     string dta;
     char lin[] = "Line received.\n";
-    char end[] = "End of mail determined.\nWrite another email by entering 'mail', or enter 'quit' to quit.\n";
+    char end[] = "Enter 'quit' to quit.\n";
     
     //while loop here reads in each line and prints it until a single period is entered
     if(recv(tempsock, rcvd, sizeof(rcvd), 0) > 0){
@@ -650,11 +659,3 @@ void wannaquit(int tempsock){
     send(tempsock, quit, sizeof(quit), 0);
     close(tempsock);
 }
-
-
-// g++ -o sr main.cpp
-// g++ -o cl client.cpp
-
-
-
-
