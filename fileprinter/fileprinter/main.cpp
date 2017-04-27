@@ -173,6 +173,7 @@ int main(int argc, char * argv[]) {
     
     //makes db folder
     mkdir("db", 0700);
+    mkdir("db/server_log", 0700);
     
     //never-ending for loop to receive all messages from the client
     for (;;) {
@@ -201,7 +202,6 @@ int main(int argc, char * argv[]) {
             
             
             //go to helo method
-            
             helofirst(sock);
         
             
@@ -297,7 +297,7 @@ void auth(int tempsock){
     
     char rcvd[MAX];
     int pinit;
-    string username, userfile, userdir, userpass, passfile, temp, atcheck, up, encodepass, spinit;
+    string username, userfile, userdir, userpass, passfile, atcheck, up, encodepass, spinit;
     time_t thatime = time(0);
     char* dt = ctime(&thatime); //used for putting timestamp on email
     ofstream op; //writes to pass file
@@ -362,7 +362,7 @@ void auth(int tempsock){
             of.open(userfile);
             
             //print date to userfile
-            of << dt;
+            of << dt << endl;
             
             // first log in replies with 330 and 5-digit randomly generated password
             cout << "Rand generated: ";
@@ -435,7 +435,6 @@ void pcheck(int tempsock, char buf[], string fname, string un){
     string basepas;
     ifstream ifs;
     char rcvd[MAX];
-    
     
     ifs.open(fname);
     if (ifs.is_open()) {
